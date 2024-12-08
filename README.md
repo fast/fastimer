@@ -1,6 +1,6 @@
-# Fast template for developing a new Rust project
+# Fastimer
 
-Use this repository as a GitHub template to quickly start a new Rust project.
+This crate implements runtime-agnostic driver for async timers and scheduled tasks.
 
 ## License
 

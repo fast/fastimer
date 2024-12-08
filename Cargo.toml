@@ -13,15 +13,15 @@
 # limitations under the License.
 
 [workspace]
-members = ["template", "xtask"]
+members = ["fastimer", "xtask"]
 resolver = "2"
 
 [workspace.package]
 edition = "2021"
-homepage = "https://github.com/fast/template"
+homepage = "https://github.com/fast/fastimer"
 license = "Apache-2.0"
 readme = "README.md"
-repository = "https://github.com/fast/template"
+repository = "https://github.com/fast/fastimer"
 rust-version = "1.80.0"
 
 [workspace.lints.rust]

@@ -13,8 +13,10 @@
 # limitations under the License.
 
 [package]
-name = "template"
+name = "fastimer"
 version = "0.1.0"
+
+description = "This crate implements runtime-agnostic driver for async timers and scheduled tasks."
 
 edition.workspace = true
 homepage.workspace = true
