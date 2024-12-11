@@ -16,53 +16,71 @@ use std::future::Future;
 use std::time::Duration;
 use std::time::Instant;
 
-use crate::make_instant_from_now;
 use crate::MakeDelay;
 use crate::Spawn;
 
+/// The result of a scheduled action, that indicates whether the action should be continued or
+/// stopped.
 pub enum ScheduleOp {
+    /// Run the action again at the specified instant.
     Continue(Instant),
+    /// Stop the action.
     Break,
 }
 
+/// A generic action that can be scheduled.
 pub trait GenericAction: Send + 'static {
+    /// The name of the action.
+    fn name(&self) -> &str;
+
+    /// Run the action.
     fn run(&mut self) -> impl Future<Output = ScheduleOp> + Send;
 }
 
+/// An extension trait for [`GenericAction`] that provides scheduling methods.
 pub trait GenericActionExt: GenericAction {
-    fn schedule<N, S, D>(
+    /// Creates and executes a repeatable action that becomes enabled first after the given
+    /// `initial_delay`, and subsequently based on the result of the action.
+    ///
+    /// If the action returns [`ScheduleOp::Continue`], the action will be scheduled again at the
+    /// specified instant. If the action returns [`ScheduleOp::Break`], the action will be stopped.
+    fn schedule<S, D>(
         mut self,
-        name: N,
         spawn: &S,
         make_delay: D,
         initial_delay: Option<Duration>,
     ) -> S::Task
     where
         Self: Sized,
-        N: Into<String>,
         S: Spawn,
         D: MakeDelay,
     {
-        let name = name.into();
         spawn.spawn(async move {
-            log::debug!("start scheduled task {name} with initial delay {initial_delay:?}");
+            #[cfg(feature = "logging")]
+            log::debug!(
+                "start scheduled task {} with initial delay {:?}",
+                self.name(),
+                initial_delay
+            );
 
             if let Some(initial_delay) = initial_delay {
                 if initial_delay > Duration::ZERO {
-                    make_delay.delay(make_instant_from_now(initial_delay)).await;
+                    make_delay.delay(initial_delay).await;
                 }
             }
 
             loop {
-                log::debug!("executing scheduled task {name}");
+                #[cfg(feature = "logging")]
+                log::debug!("executing scheduled task {}", self.name());
 
                 match self.run().await {
                     ScheduleOp::Break => {
-                        log::debug!("scheduled task {name} is stopped");
+                        #[cfg(feature = "logging")]
+                        log::debug!("scheduled task {} is stopped", self.name());
                         break;
                     }
                     ScheduleOp::Continue(at) => {
-                        make_delay.delay(at).await;
+                        make_delay.delay_util(at).await;
                     }
                 }
             }

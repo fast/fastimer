@@ -22,16 +22,26 @@ use crate::make_instant_from_now;
 use crate::MakeDelay;
 use crate::Spawn;
 
+/// Repeatable scheduled action that returns a result.
 pub trait ResultAction: Send + 'static {
     type Error: std::error::Error;
 
+    /// The name of the action.
+    fn name(&self) -> &str;
+
+    /// Run the action.
     fn run(&mut self) -> impl Future<Output = Result<(), Self::Error>> + Send;
 }
 
+/// An extension trait for [`ResultAction`] that provides scheduling methods.
 pub trait ResultActionExt: ResultAction {
-    fn schedule_with_fixed_delay<N, S, D>(
+    /// Creates and executes a periodic action that becomes enabled first after the given
+    /// `initial_delay`, and subsequently with the given `delay` between the termination of one
+    /// execution and the commencement of the next. If any execution of the task encounters an
+    /// exception, subsequent executions are suppressed if `break_on_error` is `true`.
+    /// Otherwise, the task will only terminate via cancellation.
+    fn schedule_with_fixed_delay<S, D>(
         mut self,
-        name: N,
         spawn: &S,
         make_delay: D,
         initial_delay: Option<Duration>,
@@ -40,39 +50,42 @@ pub trait ResultActionExt: ResultAction {
     ) -> S::Task
     where
         Self: Sized,
-        N: Into<String>,
         S: Spawn,
         D: MakeDelay,
     {
-        let name = name.into();
         spawn.spawn(async move {
-            log::debug!("start scheduled task {name} with fixed delay {delay:?} and initial delay {initial_delay:?}");
+            #[cfg(feature = "logging")]
+            log::debug!(
+                "start scheduled task {} with fixed delay {:?} and initial delay {:?}",
+                self.name(),
+                delay,
+                initial_delay
+            );
 
             if let Some(initial_delay) = initial_delay {
                 if initial_delay > Duration::ZERO {
-                    make_delay.delay(make_instant_from_now(initial_delay)).await;
+                    make_delay.delay(initial_delay).await;
                 }
             }
 
             loop {
-                log::debug!("executing scheduled task {name}");
-
-                if let Err(err) = self.run().await {
-                    log::error!("failed to run scheduled task {name}, error: {err}");
-
-                    if break_on_error {
-                        break;
-                    }
+                if do_run_action(&mut self, break_on_error).await {
+                    break;
                 }
-
-                make_delay.delay(make_instant_from_now(delay)).await;
+                make_delay.delay(delay).await;
             }
         })
     }
 
-    fn schedule_at_fixed_rate<N, S, D>(
+    /// Creates and executes a periodic action that becomes enabled first after the given
+    /// `initial_delay`, and subsequently with the given period; that is executions will commence
+    /// after `initial_delay` then `initial_delay+period`, then `initial_delay+2*period`, and so
+    /// on. If any execution of the task encounters an exception, subsequent executions are
+    /// suppressed if `break_on_error` is `true`. Otherwise, the task will only terminate via
+    /// cancellation. If any execution of this task takes longer than its period, then subsequent
+    /// executions may start late, but will not concurrently execute.
+    fn schedule_at_fixed_rate<S, D>(
         mut self,
-        name: N,
         spawn: &S,
         make_delay: D,
         initial_delay: Option<Duration>,
@@ -81,65 +94,78 @@ pub trait ResultActionExt: ResultAction {
     ) -> S::Task
     where
         Self: Sized,
-        N: Into<String>,
         S: Spawn,
         D: MakeDelay,
     {
         assert!(period > Duration::new(0, 0), "`period` must be non-zero.");
 
-        let name = name.into();
+        fn calculate_next_on_missing(next: Instant, now: Instant, period: Duration) -> Instant {
+            match now.checked_add(period) {
+                None => far_future(),
+                Some(instant) => {
+                    let delta = (now - next).as_nanos() % period.as_nanos();
+                    let delta: u64 = delta
+                        .try_into()
+                        // This operation is practically guaranteed not to
+                        // fail, as in order for it to fail, `period` would
+                        // have to be longer than `now - next`, and both
+                        // would have to be longer than 584 years.
+                        //
+                        // If it did fail, there's not a good way to pass
+                        // the error along to the user, so we just panic.
+                        .unwrap_or_else(|_| panic!("too much time has elapsed: {delta}"));
+                    let delta = Duration::from_nanos(delta);
+                    instant - delta
+                }
+            }
+        }
+
         spawn.spawn(async move {
-            log::debug!("start scheduled task {name} at fixed rate {period:?} with initial delay {initial_delay:?}");
+            #[cfg(feature = "logging")]
+            log::debug!(
+                "start scheduled task {} at fixed rate {:?} with initial delay {:?}",
+                self.name(),
+                period,
+                initial_delay
+            );
 
             let mut next = Instant::now();
             if let Some(initial_delay) = initial_delay {
                 if initial_delay > Duration::ZERO {
                     next = make_instant_from_now(initial_delay);
-                    make_delay.delay(next).await;
+                    make_delay.delay_util(next).await;
                 }
             }
 
             loop {
                 let now = Instant::now();
-                let epsilon = Duration::from_millis(5);
-                if now.saturating_duration_since(next) > epsilon {
-                    next = match now.checked_add(period) {
-                        Some(instant) => {
-                            let delta = Duration::from_nanos(
-                                ((now - next).as_nanos() % period.as_nanos())
-                                    .try_into()
-                                    // This operation is practically guaranteed not to
-                                    // fail, as in order for it to fail, `period` would
-                                    // have to be longer than `now - next`, and both
-                                    // would have to be longer than 584 years.
-                                    //
-                                    // If it did fail, there's not a good way to pass
-                                    // the error along to the user, so we just panic.
-                                    .expect(
-                                        "too much time has elapsed since the interval was supposed to tick",
-                                    ),
-                            );
-                            instant - delta
-                        },
-                        None => far_future(),
-                    };
-                    make_delay.delay(next).await;
+                if now.saturating_duration_since(next) > Duration::from_millis(5) {
+                    next = calculate_next_on_missing(next, now, period);
+                    make_delay.delay_util(next).await;
                 }
-
-                log::debug!("executing scheduled task {name}");
-
-                if let Err(err) = self.run().await {
-                    log::error!("failed to run scheduled task {name}, error: {err}");
-
-                    if break_on_error {
-                        break;
-                    }
+                if do_run_action(&mut self, break_on_error).await {
+                    break;
                 }
-
                 next = make_instant_from(next, period);
-                make_delay.delay(next).await;
+                make_delay.delay_util(next).await;
             }
         })
+    }
+}
+
+async fn do_run_action<A: ResultAction>(action: &mut A, break_on_error: bool) -> bool {
+    #[cfg(feature = "logging")]
+    log::debug!("executing scheduled task {}", action.name());
+
+    match action.run().await {
+        Ok(_) => false,
+        Err(err) => {
+            #[cfg(not(feature = "logging"))]
+            let _ = err;
+            #[cfg(feature = "logging")]
+            log::error!(err:?; "failed to run scheduled task {}", action.name());
+            break_on_error
+        }
     }
 }
 
@@ -148,22 +174,13 @@ impl<T: ResultAction> ResultActionExt for T {}
 #[cfg(all(test, feature = "test"))]
 mod tests {
     use std::convert::Infallible;
-    use std::sync::Once;
     use std::time::Duration;
 
-    use crate::MakeTokioDelay;
+    use crate::setup_logging;
+    use crate::tokio::MakeTokioDelay;
+    use crate::tokio::TokioSpawn;
     use crate::ResultActionExt;
     use crate::Task;
-    use crate::TokioSpawn;
-
-    fn setup_logging() {
-        static SETUP_LOGGING: Once = Once::new();
-        SETUP_LOGGING.call_once(|| {
-            let _ = logforth::builder()
-                .dispatch(|d| d.append(logforth::append::Stderr::default()))
-                .try_apply();
-        });
-    }
 
     struct TickAction {
         name: String,
@@ -173,6 +190,10 @@ mod tests {
 
     impl super::ResultAction for TickAction {
         type Error = Infallible;
+
+        fn name(&self) -> &str {
+            &self.name
+        }
 
         async fn run(&mut self) -> Result<(), Self::Error> {
             self.count += 1;
@@ -188,15 +209,13 @@ mod tests {
 
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async move {
-            let name = "tick-with-fixed-delay";
             let action = TickAction {
-                name: name.to_string(),
+                name: "fixed-delay".to_string(),
                 count: 0,
                 sleep: Duration::from_secs(1),
             };
 
             let task = action.schedule_with_fixed_delay(
-                name,
                 &TokioSpawn::current(),
                 MakeTokioDelay,
                 None,
@@ -215,48 +234,29 @@ mod tests {
         setup_logging();
 
         let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(async move {
-            let name = "tick-at-fixed-rate-1/2";
+
+        async fn do_schedule_at_fixed_rate(sleep: u64, period: u64) {
             let action = TickAction {
-                name: name.to_string(),
+                name: format!("fixed-rate-{sleep}/{period}"),
                 count: 0,
-                sleep: Duration::from_secs(1),
+                sleep: Duration::from_secs(sleep),
             };
 
             let task = action.schedule_at_fixed_rate(
-                name,
                 &TokioSpawn::current(),
                 MakeTokioDelay,
                 None,
-                Duration::from_secs(2),
+                Duration::from_secs(period),
                 false,
             );
 
             tokio::time::sleep(Duration::from_secs(10)).await;
             task.cancel();
             let _ = task.into_inner().await;
-        });
+        }
 
-        rt.block_on(async move {
-            let name = "tick-at-fixed-rate-3/2";
-            let action = TickAction {
-                name: name.to_string(),
-                count: 0,
-                sleep: Duration::from_secs(3),
-            };
-
-            let task = action.schedule_at_fixed_rate(
-                name,
-                &TokioSpawn::current(),
-                MakeTokioDelay,
-                None,
-                Duration::from_secs(2),
-                false,
-            );
-
-            tokio::time::sleep(Duration::from_secs(10)).await;
-            task.cancel();
-            let _ = task.into_inner().await;
-        });
+        rt.block_on(do_schedule_at_fixed_rate(1, 2));
+        rt.block_on(do_schedule_at_fixed_rate(3, 2));
+        rt.block_on(do_schedule_at_fixed_rate(5, 2));
     }
 }
