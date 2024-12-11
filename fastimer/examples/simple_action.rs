@@ -12,49 +12,47 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
-use std::sync::mpsc;
-use std::sync::mpsc::Sender;
+use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 
+use fastimer::schedule::SimpleAction;
+use fastimer::schedule::SimpleActionExt;
 use fastimer::tokio::MakeTokioDelay;
 use fastimer::tokio::TokioSpawn;
-use fastimer::SimpleActionExt;
+use mea::latch::Latch;
+use mea::waitgroup::WaitGroup;
 
 struct TickAction {
     count: u32,
-    shutdown: Arc<AtomicBool>,
-    tx_stopped: Sender<()>,
+
+    latch: Arc<Latch>,
+    _wg: WaitGroup,
 }
 
-impl fastimer::SimpleAction for TickAction {
+impl SimpleAction for TickAction {
     fn name(&self) -> &str {
         "tick"
     }
 
-    async fn run(&mut self) -> bool {
-        if self.shutdown.load(Ordering::Acquire) {
-            println!("shutdown");
-            let _ = self.tx_stopped.send(());
-            true
-        } else {
-            println!("tick: {}", self.count);
-            self.count += 1;
-            false
-        }
+    async fn run(&mut self) {
+        self.count += 1;
+        println!("tick: {}", self.count);
+    }
+
+    fn is_shutdown(&self) -> impl Future<Output = ()> + Send {
+        self.latch.wait()
     }
 }
 
 fn main() {
-    let (tx, rx) = mpsc::channel();
-    let shutdown = Arc::new(AtomicBool::new(false));
+    let wg = WaitGroup::new();
+    let latch = Arc::new(Latch::new(1));
 
     let tick = TickAction {
         count: 0,
-        shutdown: shutdown.clone(),
-        tx_stopped: tx,
+        latch: latch.clone(),
+        _wg: wg.clone(),
     };
 
     let rt = tokio::runtime::Runtime::new().unwrap();
@@ -67,7 +65,9 @@ fn main() {
         );
 
         tokio::time::sleep(Duration::from_secs(5)).await;
-        shutdown.store(true, Ordering::Release);
+        latch.count_down();
+        tokio::time::timeout(Duration::from_secs(5), wg)
+            .await
+            .unwrap();
     });
-    let _ = rx.recv_timeout(Duration::from_secs(5));
 }

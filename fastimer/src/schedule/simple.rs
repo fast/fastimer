@@ -19,6 +19,8 @@ use std::time::Instant;
 use crate::far_future;
 use crate::make_instant_from;
 use crate::make_instant_from_now;
+use crate::schedule::select::select;
+use crate::schedule::select::Either;
 use crate::MakeDelay;
 use crate::Spawn;
 
@@ -28,9 +30,21 @@ pub trait SimpleAction: Send + 'static {
     fn name(&self) -> &str;
 
     /// Run the action.
+    fn run(&mut self) -> impl Future<Output = ()> + Send;
+
+    /// Return a future that resolves when the action is shutdown.
     ///
-    /// Return `true` if this action should stop; `false` otherwise.
-    fn run(&mut self) -> impl Future<Output = bool> + Send;
+    /// By default, this function returns a future that never resolves, i.e., the action will never
+    /// be shutdown.
+    fn is_shutdown(&self) -> impl Future<Output = ()> + Send {
+        std::future::pending()
+    }
+
+    /// A teardown hook that is called when the action is shutdown.
+    fn teardown(&mut self) {
+        #[cfg(feature = "logging")]
+        log::debug!("scheduled task {} is stopped", self.name());
+    }
 }
 
 /// An extension trait for [`SimpleAction`] that provides scheduling methods.
@@ -69,10 +83,14 @@ pub trait SimpleActionExt: SimpleAction {
             loop {
                 #[cfg(feature = "logging")]
                 log::debug!("executing scheduled task {}", self.name());
-                if self.run().await {
+                self.run().await;
+
+                let is_shutdown = self.is_shutdown();
+                let delay = make_delay.delay(delay);
+                if let Either::Left(()) = select(is_shutdown, delay).await {
+                    self.teardown();
                     break;
                 }
-                make_delay.delay(delay).await;
             }
         });
     }
@@ -99,23 +117,31 @@ pub trait SimpleActionExt: SimpleAction {
     {
         assert!(period > Duration::new(0, 0), "`period` must be non-zero.");
 
-        fn calculate_next_on_miss(next: Instant, now: Instant, period: Duration) -> Instant {
-            match now.checked_add(period) {
-                None => far_future(),
-                Some(instant) => {
-                    let delta = (now - next).as_nanos() % period.as_nanos();
-                    let delta: u64 = delta
-                        .try_into()
-                        // This operation is practically guaranteed not to
-                        // fail, as in order for it to fail, `period` would
-                        // have to be longer than `now - next`, and both
-                        // would have to be longer than 584 years.
-                        //
-                        // If it did fail, there's not a good way to pass
-                        // the error along to the user, so we just panic.
-                        .unwrap_or_else(|_| panic!("too much time has elapsed: {delta}"));
-                    let delta = Duration::from_nanos(delta);
-                    instant - delta
+        fn calculate_next_on_miss(next: Instant, period: Duration) -> Instant {
+            let now = Instant::now();
+
+            if now.saturating_duration_since(next) <= Duration::from_millis(5) {
+                // finished in time
+                make_instant_from(next, period)
+            } else {
+                // missed the expected execution time; align the next one
+                match now.checked_add(period) {
+                    None => far_future(),
+                    Some(instant) => {
+                        let delta = (now - next).as_nanos() % period.as_nanos();
+                        let delta: u64 = delta
+                            .try_into()
+                            // This operation is practically guaranteed not to
+                            // fail, as in order for it to fail, `period` would
+                            // have to be longer than `now - next`, and both
+                            // would have to be longer than 584 years.
+                            //
+                            // If it did fail, there's not a good way to pass
+                            // the error along to the user, so we just panic.
+                            .unwrap_or_else(|_| panic!("too much time has elapsed: {delta}"));
+                        let delta = Duration::from_nanos(delta);
+                        instant - delta
+                    }
                 }
             }
         }
@@ -140,19 +166,15 @@ pub trait SimpleActionExt: SimpleAction {
             loop {
                 #[cfg(feature = "logging")]
                 log::debug!("executing scheduled task {}", self.name());
-                if self.run().await {
+                self.run().await;
+
+                next = calculate_next_on_miss(next, period);
+                let is_shutdown = self.is_shutdown();
+                let delay = make_delay.delay_util(next);
+                if let Either::Left(()) = select(is_shutdown, delay).await {
+                    self.teardown();
                     break;
                 }
-
-                let now = Instant::now();
-                if now.saturating_duration_since(next) > Duration::from_millis(5) {
-                    // align the next execution time if we miss the expected one
-                    next = calculate_next_on_miss(next, now, period);
-                } else {
-                    // self.run() finishes in time
-                    next = make_instant_from(next, period);
-                }
-                make_delay.delay_util(next).await;
             }
         });
     }
@@ -162,23 +184,25 @@ impl<T: SimpleAction> SimpleActionExt for T {}
 
 #[cfg(all(test, feature = "test"))]
 mod tests {
+    use std::future::Future;
+    use std::sync::Arc;
     use std::time::Duration;
 
-    use tokio::sync::mpsc::Receiver;
-    use tokio::sync::mpsc::Sender;
+    use mea::latch::Latch;
+    use mea::waitgroup::WaitGroup;
 
+    use super::SimpleActionExt;
     use crate::setup_logging;
     use crate::tokio::MakeTokioDelay;
     use crate::tokio::TokioSpawn;
-    use crate::SimpleActionExt;
 
     struct TickAction {
         name: String,
         count: u32,
         sleep: Duration,
 
-        tx_stopped: Sender<()>,
-        rx_shutdown: Receiver<()>,
+        latch: Arc<Latch>,
+        _wg: WaitGroup,
     }
 
     impl super::SimpleAction for TickAction {
@@ -186,18 +210,14 @@ mod tests {
             &self.name
         }
 
-        async fn run(&mut self) -> bool {
+        async fn run(&mut self) {
             self.count += 1;
             log::info!("[{}] tick count: {}", self.name, self.count);
+            tokio::time::sleep(self.sleep).await;
+        }
 
-            tokio::select! {
-                _ = tokio::time::sleep(self.sleep) => false,
-                _ = self.rx_shutdown.recv() => {
-                    log::info!("[{}] shutdown", self.name);
-                    let _ = self.tx_stopped.send(()).await;
-                    true
-                },
-            }
+        fn is_shutdown(&self) -> impl Future<Output = ()> + Send {
+            self.latch.wait()
         }
     }
 
@@ -207,15 +227,15 @@ mod tests {
 
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async move {
-            let (tx_shutdown, rx_shutdown) = tokio::sync::mpsc::channel(1);
-            let (tx_stopped, mut rx_stopped) = tokio::sync::mpsc::channel(1);
+            let wg = WaitGroup::new();
+            let latch = Arc::new(Latch::new(1));
 
             let action = TickAction {
                 name: "fixed-delay".to_string(),
                 count: 0,
                 sleep: Duration::from_secs(1),
-                tx_stopped,
-                rx_shutdown,
+                latch: latch.clone(),
+                _wg: wg.clone(),
             };
 
             action.schedule_with_fixed_delay(
@@ -226,8 +246,10 @@ mod tests {
             );
 
             tokio::time::sleep(Duration::from_secs(10)).await;
-            let _ = tx_shutdown.send(()).await;
-            rx_stopped.recv().await;
+            latch.count_down();
+            tokio::time::timeout(Duration::from_secs(5), wg)
+                .await
+                .unwrap();
         });
     }
 
@@ -238,15 +260,15 @@ mod tests {
         let rt = tokio::runtime::Runtime::new().unwrap();
 
         async fn do_schedule_at_fixed_rate(sleep: u64, period: u64) {
-            let (tx_shutdown, rx_shutdown) = tokio::sync::mpsc::channel(1);
-            let (tx_stopped, mut rx_stopped) = tokio::sync::mpsc::channel(1);
+            let wg = WaitGroup::new();
+            let latch = Arc::new(Latch::new(1));
 
             let action = TickAction {
                 name: format!("fixed-rate-{sleep}/{period}"),
                 count: 0,
                 sleep: Duration::from_secs(sleep),
-                tx_stopped,
-                rx_shutdown,
+                latch: latch.clone(),
+                _wg: wg.clone(),
             };
 
             action.schedule_at_fixed_rate(
@@ -257,8 +279,10 @@ mod tests {
             );
 
             tokio::time::sleep(Duration::from_secs(10)).await;
-            let _ = tx_shutdown.send(()).await;
-            rx_stopped.recv().await;
+            latch.count_down();
+            tokio::time::timeout(Duration::from_secs(5), wg)
+                .await
+                .unwrap();
         }
 
         rt.block_on(do_schedule_at_fixed_rate(1, 2));

@@ -18,105 +18,19 @@
 //!
 //! # Scheduled Tasks
 //!
-//! Fastimer provides [`SimpleAction`] and [`GenericAction`] that can be scheduled as a repeating
-//! and cancellable task.
-//!
-//! ## Examples
-//!
-//! Schedule a repeating task with [`SimpleAction`]:
-//!
-//! ```rust
-//! use std::sync::atomic::AtomicBool;
-//! use std::sync::atomic::Ordering;
-//! use std::sync::mpsc;
-//! use std::sync::mpsc::Sender;
-//! use std::sync::Arc;
-//! use std::time::Duration;
-//!
-//! use fastimer::tokio::MakeTokioDelay;
-//! use fastimer::tokio::TokioSpawn;
-//! use fastimer::SimpleActionExt;
-//!
-//! struct TickAction {
-//!     count: u32,
-//!     shutdown: Arc<AtomicBool>,
-//!     tx_stopped: Sender<()>,
-//! }
-//!
-//! impl fastimer::SimpleAction for TickAction {
-//!     fn name(&self) -> &str {
-//!         "tick"
-//!     }
-//!
-//!     async fn run(&mut self) -> bool {
-//!         if self.shutdown.load(Ordering::Acquire) {
-//!             println!("shutdown");
-//!             let _ = self.tx_stopped.send(());
-//!             true
-//!         } else {
-//!             println!("tick: {}", self.count);
-//!             self.count += 1;
-//!             false
-//!         }
-//!     }
-//! }
-//!
-//! let (tx, rx) = mpsc::channel();
-//! let shutdown = Arc::new(AtomicBool::new(false));
-//!
-//! let tick = TickAction {
-//!     count: 0,
-//!     shutdown: shutdown.clone(),
-//!     tx_stopped: tx,
-//! };
-//!
-//! let rt = tokio::runtime::Runtime::new().unwrap();
-//! rt.block_on(async move {
-//!     tick.schedule_with_fixed_delay(
-//!         &TokioSpawn::current(),
-//!         MakeTokioDelay,
-//!         None,
-//!         Duration::from_secs(1),
-//!     );
-//!
-//!     tokio::time::sleep(Duration::from_secs(5)).await;
-//!     shutdown.store(true, Ordering::Release);
-//! });
-//! let _ = rx.recv_timeout(Duration::from_secs(5));
-//! ```
+//! Fastimer provides [`schedule::SimpleAction`] and [`schedule::ArbitraryDelayAction`] that can be
+//! scheduled as a repeating and cancellable task.
 //!
 //! # Time Driver
 //!
 //! [`driver::TimeDriver`] is a runtime-agnostic time driver for creating delay futures. To use the
 //! time driver, you need to enable the `driver` feature flag.
-//!
-//! ## Examples
-//!
-//! Play with a time driver:
-//!
-//! ```rust
-//! let (mut driver, context, shutdown) = fastimer::driver::driver();
-//!
-//! std::thread::spawn(move || loop {
-//!     if driver.turn() {
-//!         break;
-//!     }
-//! });
-//!
-//! let delay = context.delay(std::time::Duration::from_secs(1));
-//! pollster::block_on(delay); // finish after 1 second
-//! shutdown.shutdown();
-//! ```
 
 use std::future::Future;
 use std::time::Duration;
 use std::time::Instant;
 
-mod generic;
-pub use generic::*;
-
-mod simple;
-pub use simple::*;
+pub mod schedule;
 
 #[cfg(feature = "driver")]
 pub mod driver;
