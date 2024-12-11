@@ -19,7 +19,6 @@ pub use delay::*;
 
 #[cfg(feature = "tokio-time")]
 mod delay {
-    use std::future::Future;
     use std::time::Duration;
     use std::time::Instant;
 
@@ -30,11 +29,13 @@ mod delay {
     pub struct MakeTokioDelay;
 
     impl MakeDelay for MakeTokioDelay {
-        fn delay_util(&self, at: Instant) -> impl Future<Output = ()> {
+        type Delay = tokio::time::Sleep;
+
+        fn delay_util(&self, at: Instant) -> Self::Delay {
             tokio::time::sleep_until(tokio::time::Instant::from_std(at))
         }
 
-        fn delay(&self, duration: Duration) -> impl Future<Output = ()> + Send {
+        fn delay(&self, duration: Duration) -> Self::Delay {
             tokio::time::sleep(duration)
         }
     }

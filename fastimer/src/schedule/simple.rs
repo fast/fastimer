@@ -192,7 +192,7 @@ mod tests {
     use mea::waitgroup::WaitGroup;
 
     use super::SimpleActionExt;
-    use crate::setup_logging;
+    use crate::timeout;
     use crate::tokio::MakeTokioDelay;
     use crate::tokio::TokioSpawn;
 
@@ -223,7 +223,7 @@ mod tests {
 
     #[test]
     fn test_schedule_with_fixed_delay() {
-        setup_logging();
+        let _ = logforth::stderr().try_apply();
 
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async move {
@@ -247,7 +247,7 @@ mod tests {
 
             tokio::time::sleep(Duration::from_secs(10)).await;
             latch.count_down();
-            tokio::time::timeout(Duration::from_secs(5), wg)
+            timeout(Duration::from_secs(5), wg, MakeTokioDelay)
                 .await
                 .unwrap();
         });
@@ -255,9 +255,7 @@ mod tests {
 
     #[test]
     fn test_schedule_at_fixed_rate() {
-        setup_logging();
-
-        let rt = tokio::runtime::Runtime::new().unwrap();
+        let _ = logforth::stderr().try_apply();
 
         async fn do_schedule_at_fixed_rate(sleep: u64, period: u64) {
             let wg = WaitGroup::new();
@@ -280,11 +278,12 @@ mod tests {
 
             tokio::time::sleep(Duration::from_secs(10)).await;
             latch.count_down();
-            tokio::time::timeout(Duration::from_secs(5), wg)
+            timeout(Duration::from_secs(5), wg, MakeTokioDelay)
                 .await
                 .unwrap();
         }
 
+        let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(do_schedule_at_fixed_rate(1, 2));
         rt.block_on(do_schedule_at_fixed_rate(3, 2));
         rt.block_on(do_schedule_at_fixed_rate(5, 2));
