@@ -16,7 +16,33 @@
 [actions-badge]: https://github.com/fast/fastimer/workflows/CI/badge.svg
 [actions-url]:https://github.com/fast/fastimer/actions?query=workflow%3ACI
 
-This crate implements runtime-agnostic driver for async timers and scheduled tasks.
+## Overview
+
+Fastimer implements runtime-agnostic driver for async timers and scheduled tasks.
+
+### Scheduled Actions
+
+Fastimer provides [`SimpleAction`](https://docs.rs/fastimer/latest/fastimer/schedule/trait.SimpleAction.html) and [`ArbitraryDelayAction`](https://docs.rs/fastimer/latest/fastimer/schedule/trait.ArbitraryDelayAction.html) that can be scheduled as a repeating and cancellable action.
+
+### Timeout
+
+[`Timeout`](https://docs.rs/fastimer/latest/fastimer/struct.Timeout.html) is a future combinator that completes when the inner future completes or when the timeout expires.
+
+### Time Driver
+
+[`TimeDriver`](https://docs.rs/fastimer/latest/fastimer/driver/struct.TimeDriver.html) is a runtime-agnostic time driver for creating delay futures. To use the time driver, you need to enable the driver feature flag.
+
+## Installation
+
+Add the dependency to your `Cargo.toml` via:
+
+```shell
+cargo add mea
+```
+
+## Documentation
+
+Read the online documents at https://docs.rs/fastimer.
 
 ## License
 

@@ -14,12 +14,12 @@
 
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
-//! Fastimer implements runtime-agnostic driver for async timers and scheduled tasks.
+//! Fastimer implements runtime-agnostic driver for async timers and scheduled actions.
 //!
-//! # Scheduled Tasks
+//! # Scheduled Actions
 //!
 //! Fastimer provides [`SimpleAction`] and [`ArbitraryDelayAction`] that can be
-//! scheduled as a repeating and cancellable task.
+//! scheduled as a repeating and cancellable action.
 //!
 //! # Timeout
 //!
@@ -95,6 +95,9 @@ pub trait Spawn {
 #[derive(Debug, PartialEq, Eq)]
 pub struct Elapsed(());
 
+/// A future that completes when the inner future completes or when the timeout expires.
+///
+/// Created by [`timeout`] or [`timeout_at`].
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 #[derive(Debug)]
 #[pin_project::pin_project]
@@ -103,6 +106,23 @@ pub struct Timeout<T, D> {
     value: T,
     #[pin]
     delay: D,
+}
+
+impl<T, D> Timeout<T, D> {
+    /// Gets a reference to the underlying value in this timeout.
+    pub fn get(&self) -> &T {
+        &self.value
+    }
+
+    /// Gets a mutable reference to the underlying value in this timeout.
+    pub fn get_mut(&mut self) -> &mut T {
+        &mut self.value
+    }
+
+    /// Consumes this timeout, returning the underlying value.
+    pub fn into_inner(self) -> T {
+        self.value
+    }
 }
 
 impl<T, D> Future for Timeout<T, D>
@@ -126,6 +146,7 @@ where
     }
 }
 
+/// Requires a `Future` to complete before the specified duration has elapsed.
 pub fn timeout<F, D>(
     duration: Duration,
     future: F,
@@ -142,6 +163,7 @@ where
     }
 }
 
+/// Requires a `Future` to complete before the specified instant in time.
 pub fn timeout_at<F, D>(
     deadline: Instant,
     future: F,
