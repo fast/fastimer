@@ -88,14 +88,6 @@
 //! pollster::block_on(delay); // finish after 1 second
 //! shutdown.shutdown();
 //! ```
-//!
-//! You can also use the static time driver:
-//!
-//! ```rust
-//! let context = fastimer::driver::static_context();
-//! let delay = context.delay(std::time::Duration::from_secs(1));
-//! pollster::block_on(delay); // finish after 1 second
-//! ```
 
 use std::future::Future;
 use std::time::Duration;

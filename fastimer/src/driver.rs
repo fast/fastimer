@@ -226,23 +226,19 @@ impl TimeDriver {
 }
 
 /// A delay implementation that uses the given time context.
-#[derive(Debug, Clone, Default)]
-pub struct MakeFastimerDelay(Option<TimeContext>);
+#[derive(Debug, Clone)]
+pub struct MakeFastimerDelay(TimeContext);
 
 impl MakeFastimerDelay {
     /// Create a new [`MakeFastimerDelay`] with the given [`TimeContext`].
-    pub fn with_context(mut self, context: TimeContext) -> Self {
-        self.0 = Some(context);
-        self
+    pub fn new(context: TimeContext) -> Self {
+        MakeFastimerDelay(context)
     }
 }
 
 impl MakeDelay for MakeFastimerDelay {
     fn delay(&self, at: Instant) -> impl Future<Output = ()> + Send {
-        match &self.0 {
-            None => static_context().delay_until(at),
-            Some(context) => context.delay_until(at),
-        }
+        self.0.delay_until(at)
     }
 }
 
