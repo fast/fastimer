@@ -50,9 +50,6 @@ pub trait ArbitraryDelayAction: Send + 'static {
 pub trait ArbitraryDelayActionExt: ArbitraryDelayAction {
     /// Creates and executes a repeatable action that becomes enabled first after the given
     /// `initial_delay`, and subsequently based on the result of the action.
-    ///
-    /// If the action returns [`ScheduleOp::Continue`], the action will be scheduled again at the
-    /// specified instant. If the action returns [`ScheduleOp::Break`], the action will be stopped.
     fn schedule<S, D>(mut self, spawn: &S, make_delay: D, initial_delay: Option<Duration>)
     where
         Self: Sized,
