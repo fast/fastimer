@@ -139,12 +139,10 @@ pub trait ResultActionExt: ResultAction {
 
             loop {
                 let now = Instant::now();
-                let epsilon = Duration::from_millis(5);
-                if now.saturating_duration_since(next) > epsilon {
+                if now.saturating_duration_since(next) > Duration::from_millis(5) {
                     next = calculate_next_on_missing(next, now, period);
                     make_delay.delay_util(next).await;
                 }
-
                 if do_run_action(&mut self, break_on_error).await {
                     break;
                 }
@@ -162,6 +160,8 @@ async fn do_run_action<A: ResultAction>(action: &mut A, break_on_error: bool) ->
     match action.run().await {
         Ok(_) => false,
         Err(err) => {
+            #[cfg(not(feature = "logging"))]
+            let _ = err;
             #[cfg(feature = "logging")]
             log::error!(err:?; "failed to run scheduled task {}", action.name());
             break_on_error
