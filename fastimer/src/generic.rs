@@ -44,12 +44,7 @@ pub trait GenericActionExt: GenericAction {
     ///
     /// If the action returns [`ScheduleOp::Continue`], the action will be scheduled again at the
     /// specified instant. If the action returns [`ScheduleOp::Break`], the action will be stopped.
-    fn schedule<S, D>(
-        mut self,
-        spawn: &S,
-        make_delay: D,
-        initial_delay: Option<Duration>,
-    ) -> S::Task
+    fn schedule<S, D>(mut self, spawn: &S, make_delay: D, initial_delay: Option<Duration>)
     where
         Self: Sized,
         S: Spawn,
@@ -84,7 +79,7 @@ pub trait GenericActionExt: GenericAction {
                     }
                 }
             }
-        })
+        });
     }
 }
 

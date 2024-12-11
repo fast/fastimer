@@ -48,7 +48,6 @@ mod spawn {
     use std::future::Future;
 
     use crate::Spawn;
-    use crate::Task;
 
     /// A spawn implementation that uses Tokio's runtime.
     #[derive(Clone, Debug, Default)]
@@ -68,30 +67,11 @@ mod spawn {
     }
 
     impl Spawn for TokioSpawn {
-        type Task = TokioTask;
-
-        fn spawn<F: Future<Output = ()> + Send + 'static>(&self, future: F) -> Self::Task {
-            TokioTask(match &self.0 {
+        fn spawn<F: Future<Output = ()> + Send + 'static>(&self, future: F) {
+            match &self.0 {
                 None => tokio::spawn(future),
                 Some(handle) => handle.spawn(future),
-            })
-        }
-    }
-
-    /// A wrapper for a cancellable Tokio task.
-    #[derive(Debug)]
-    pub struct TokioTask(tokio::task::JoinHandle<()>);
-
-    impl TokioTask {
-        /// Return the inner [`tokio::task::JoinHandle`].
-        pub fn into_inner(self) -> tokio::task::JoinHandle<()> {
-            self.0
-        }
-    }
-
-    impl Task for TokioTask {
-        fn cancel(&self) {
-            self.0.abort();
+            };
         }
     }
 }

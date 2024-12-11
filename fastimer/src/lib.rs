@@ -18,52 +18,71 @@
 //!
 //! # Scheduled Tasks
 //!
-//! Fastimer provides [`ResultAction`] and [`GenericAction`] that can be scheduled as a repeating
+//! Fastimer provides [`SimpleAction`] and [`GenericAction`] that can be scheduled as a repeating
 //! and cancellable task.
 //!
 //! ## Examples
 //!
-//! Schedule a repeating task with [`ResultAction`]:
+//! Schedule a repeating task with [`SimpleAction`]:
 //!
 //! ```rust
-//! use std::convert::Infallible;
-//! use std::future::Future;
+//! use std::sync::atomic::AtomicBool;
+//! use std::sync::atomic::Ordering;
+//! use std::sync::mpsc;
+//! use std::sync::mpsc::Sender;
+//! use std::sync::Arc;
+//! use std::time::Duration;
 //!
 //! use fastimer::tokio::MakeTokioDelay;
 //! use fastimer::tokio::TokioSpawn;
-//! use fastimer::ResultActionExt;
-//! use fastimer::Task;
+//! use fastimer::SimpleActionExt;
 //!
-//! struct TickAction(u32);
-//! impl fastimer::ResultAction for TickAction {
-//!     type Error = Infallible;
+//! struct TickAction {
+//!     count: u32,
+//!     shutdown: Arc<AtomicBool>,
+//!     tx_stopped: Sender<()>,
+//! }
 //!
+//! impl fastimer::SimpleAction for TickAction {
 //!     fn name(&self) -> &str {
 //!         "tick"
 //!     }
 //!
-//!     async fn run(&mut self) -> Result<(), Self::Error> {
-//!         self.0 += 1;
-//!         println!("tick: {}", self.0);
-//!         Ok(())
+//!     async fn run(&mut self) -> bool {
+//!         if self.shutdown.load(Ordering::Acquire) {
+//!             println!("shutdown");
+//!             let _ = self.tx_stopped.send(());
+//!             true
+//!         } else {
+//!             println!("tick: {}", self.count);
+//!             self.count += 1;
+//!             false
+//!         }
 //!     }
 //! }
 //!
-//! let tick = TickAction(0);
+//! let (tx, rx) = mpsc::channel();
+//! let shutdown = Arc::new(AtomicBool::new(false));
+//!
+//! let tick = TickAction {
+//!     count: 0,
+//!     shutdown: shutdown.clone(),
+//!     tx_stopped: tx,
+//! };
+//!
 //! let rt = tokio::runtime::Runtime::new().unwrap();
 //! rt.block_on(async move {
-//!     let task = tick.schedule_with_fixed_delay(
+//!     tick.schedule_with_fixed_delay(
 //!         &TokioSpawn::current(),
 //!         MakeTokioDelay,
 //!         None,
-//!         std::time::Duration::from_secs(1),
-//!         false,
+//!         Duration::from_secs(1),
 //!     );
 //!
-//!     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-//!     task.cancel();
-//!     let _ = task.into_inner().await;
+//!     tokio::time::sleep(Duration::from_secs(5)).await;
+//!     shutdown.store(true, Ordering::Release);
 //! });
+//! let _ = rx.recv_timeout(Duration::from_secs(5));
 //! ```
 //!
 //! # Time Driver
@@ -96,27 +115,30 @@ use std::time::Instant;
 mod generic;
 pub use generic::*;
 
-mod result;
-pub use result::*;
+mod simple;
+pub use simple::*;
 
 #[cfg(feature = "driver")]
 pub mod driver;
 #[cfg(any(feature = "tokio-time", feature = "tokio-spawn"))]
 pub mod tokio;
 
-// Roughly 30 years from now.
-fn far_future() -> Instant {
+/// Create a far future instant.
+pub fn far_future() -> Instant {
+    // Roughly 30 years from now.
     // API does not provide a way to obtain max `Instant`
     // or convert specific date in the future to instant.
     // 1000 years overflows on macOS, 100 years overflows on FreeBSD.
     Instant::now() + Duration::from_secs(86400 * 365 * 30)
 }
 
-fn make_instant_from(now: Instant, dur: Duration) -> Instant {
+/// Create an instant from the given instant and a duration.
+pub fn make_instant_from(now: Instant, dur: Duration) -> Instant {
     now.checked_add(dur).unwrap_or_else(far_future)
 }
 
-fn make_instant_from_now(dur: Duration) -> Instant {
+/// Create an instant from [`Instant::now`] and a duration.
+pub fn make_instant_from_now(dur: Duration) -> Instant {
     make_instant_from(Instant::now(), dur)
 }
 
@@ -131,19 +153,10 @@ pub trait MakeDelay: Send + 'static {
     }
 }
 
-/// A cancellable task.
-pub trait Task {
-    /// Cancel this task.
-    fn cancel(&self);
-}
-
 /// A trait for spawning futures.
 pub trait Spawn {
-    /// The type of cancellable task that this spawn produces.
-    type Task: Task;
-
     /// Spawn a future and return a cancellable future.
-    fn spawn<F: Future<Output = ()> + Send + 'static>(&self, future: F) -> Self::Task;
+    fn spawn<F: Future<Output = ()> + Send + 'static>(&self, future: F);
 }
 
 #[cfg(test)]
