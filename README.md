@@ -37,7 +37,7 @@ Fastimer provides [`SimpleAction`](https://docs.rs/fastimer/latest/fastimer/sche
 Add the dependency to your `Cargo.toml` via:
 
 ```shell
-cargo add mea
+cargo add fastimer
 ```
 
 ## Documentation
