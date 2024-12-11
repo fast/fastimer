@@ -64,7 +64,7 @@ pub trait ResultActionExt: ResultAction {
 
             if let Some(initial_delay) = initial_delay {
                 if initial_delay > Duration::ZERO {
-                    make_delay.delay(make_instant_from_now(initial_delay)).await;
+                    make_delay.delay(initial_delay).await;
                 }
             }
 
@@ -72,7 +72,7 @@ pub trait ResultActionExt: ResultAction {
                 if do_run_action(&mut self, break_on_error).await {
                     break;
                 }
-                make_delay.delay(make_instant_from_now(delay)).await;
+                make_delay.delay(delay).await;
             }
         })
     }
@@ -133,7 +133,7 @@ pub trait ResultActionExt: ResultAction {
             if let Some(initial_delay) = initial_delay {
                 if initial_delay > Duration::ZERO {
                     next = make_instant_from_now(initial_delay);
-                    make_delay.delay(next).await;
+                    make_delay.delay_util(next).await;
                 }
             }
 
@@ -142,14 +142,14 @@ pub trait ResultActionExt: ResultAction {
                 let epsilon = Duration::from_millis(5);
                 if now.saturating_duration_since(next) > epsilon {
                     next = calculate_next_on_missing(next, now, period);
-                    make_delay.delay(next).await;
+                    make_delay.delay_util(next).await;
                 }
 
                 if do_run_action(&mut self, break_on_error).await {
                     break;
                 }
                 next = make_instant_from(next, period);
-                make_delay.delay(next).await;
+                make_delay.delay_util(next).await;
             }
         })
     }

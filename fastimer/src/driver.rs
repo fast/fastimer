@@ -237,8 +237,12 @@ impl MakeFastimerDelay {
 }
 
 impl MakeDelay for MakeFastimerDelay {
-    fn delay(&self, at: Instant) -> impl Future<Output = ()> + Send {
+    fn delay_util(&self, at: Instant) -> impl Future<Output = ()> + Send {
         self.0.delay_until(at)
+    }
+
+    fn delay(&self, duration: Duration) -> impl Future<Output = ()> + Send {
+        self.0.delay(duration)
     }
 }
 

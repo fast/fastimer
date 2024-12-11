@@ -123,7 +123,12 @@ fn make_instant_from_now(dur: Duration) -> Instant {
 /// A trait for creating delay futures.
 pub trait MakeDelay: Send + 'static {
     /// Create a future that completes at the specified instant.
-    fn delay(&self, at: Instant) -> impl Future<Output = ()> + Send;
+    fn delay_util(&self, at: Instant) -> impl Future<Output = ()> + Send;
+
+    /// Create a future that completes after the specified duration.
+    fn delay(&self, duration: Duration) -> impl Future<Output = ()> + Send {
+        self.delay_util(make_instant_from_now(duration))
+    }
 }
 
 /// A cancellable task.

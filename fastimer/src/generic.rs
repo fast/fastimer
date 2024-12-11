@@ -16,7 +16,6 @@ use std::future::Future;
 use std::time::Duration;
 use std::time::Instant;
 
-use crate::make_instant_from_now;
 use crate::MakeDelay;
 use crate::Spawn;
 
@@ -66,7 +65,7 @@ pub trait GenericActionExt: GenericAction {
 
             if let Some(initial_delay) = initial_delay {
                 if initial_delay > Duration::ZERO {
-                    make_delay.delay(make_instant_from_now(initial_delay)).await;
+                    make_delay.delay(initial_delay).await;
                 }
             }
 
@@ -81,7 +80,7 @@ pub trait GenericActionExt: GenericAction {
                         break;
                     }
                     ScheduleOp::Continue(at) => {
-                        make_delay.delay(at).await;
+                        make_delay.delay_util(at).await;
                     }
                 }
             }
