@@ -18,105 +18,41 @@
 //!
 //! # Scheduled Tasks
 //!
-//! Fastimer provides [`ResultAction`] and [`GenericAction`] that can be scheduled as a repeating
-//! and cancellable task.
-//!
-//! ## Examples
-//!
-//! Schedule a repeating task with [`ResultAction`]:
-//!
-//! ```rust
-//! use std::convert::Infallible;
-//! use std::future::Future;
-//!
-//! use fastimer::tokio::MakeTokioDelay;
-//! use fastimer::tokio::TokioSpawn;
-//! use fastimer::ResultActionExt;
-//! use fastimer::Task;
-//!
-//! struct TickAction(u32);
-//! impl fastimer::ResultAction for TickAction {
-//!     type Error = Infallible;
-//!
-//!     fn name(&self) -> &str {
-//!         "tick"
-//!     }
-//!
-//!     async fn run(&mut self) -> Result<(), Self::Error> {
-//!         self.0 += 1;
-//!         println!("tick: {}", self.0);
-//!         Ok(())
-//!     }
-//! }
-//!
-//! let tick = TickAction(0);
-//! let rt = tokio::runtime::Runtime::new().unwrap();
-//! rt.block_on(async move {
-//!     let task = tick.schedule_with_fixed_delay(
-//!         &TokioSpawn::current(),
-//!         MakeTokioDelay,
-//!         None,
-//!         std::time::Duration::from_secs(1),
-//!         false,
-//!     );
-//!
-//!     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-//!     task.cancel();
-//!     let _ = task.into_inner().await;
-//! });
-//! ```
+//! Fastimer provides [`schedule::SimpleAction`] and [`schedule::ArbitraryDelayAction`] that can be
+//! scheduled as a repeating and cancellable task.
 //!
 //! # Time Driver
 //!
 //! [`driver::TimeDriver`] is a runtime-agnostic time driver for creating delay futures. To use the
 //! time driver, you need to enable the `driver` feature flag.
-//!
-//! ## Examples
-//!
-//! Play with a time driver:
-//!
-//! ```rust
-//! let (mut driver, context, shutdown) = fastimer::driver::driver();
-//!
-//! std::thread::spawn(move || loop {
-//!     if driver.turn() {
-//!         break;
-//!     }
-//! });
-//!
-//! let delay = context.delay(std::time::Duration::from_secs(1));
-//! pollster::block_on(delay); // finish after 1 second
-//! shutdown.shutdown();
-//! ```
 
 use std::future::Future;
 use std::time::Duration;
 use std::time::Instant;
 
-mod generic;
-pub use generic::*;
-
-mod result;
-pub use result::*;
+pub mod schedule;
 
 #[cfg(feature = "driver")]
 pub mod driver;
 #[cfg(any(feature = "tokio-time", feature = "tokio-spawn"))]
 pub mod tokio;
 
-// Roughly 30 years from now.
-fn far_future() -> Instant {
+/// Create a far future instant.
+pub fn far_future() -> Instant {
+    // Roughly 30 years from now.
     // API does not provide a way to obtain max `Instant`
     // or convert specific date in the future to instant.
     // 1000 years overflows on macOS, 100 years overflows on FreeBSD.
     Instant::now() + Duration::from_secs(86400 * 365 * 30)
 }
 
-fn make_instant_from(now: Instant, dur: Duration) -> Instant {
+/// Create an instant from the given instant and a duration.
+pub fn make_instant_from(now: Instant, dur: Duration) -> Instant {
     now.checked_add(dur).unwrap_or_else(far_future)
 }
 
-fn make_instant_from_now(dur: Duration) -> Instant {
+/// Create an instant from [`Instant::now`] and a duration.
+pub fn make_instant_from_now(dur: Duration) -> Instant {
     make_instant_from(Instant::now(), dur)
 }
 
@@ -131,19 +67,10 @@ pub trait MakeDelay: Send + 'static {
     }
 }
 
-/// A cancellable task.
-pub trait Task {
-    /// Cancel this task.
-    fn cancel(&self);
-}
-
 /// A trait for spawning futures.
 pub trait Spawn {
-    /// The type of cancellable task that this spawn produces.
-    type Task: Task;
-
     /// Spawn a future and return a cancellable future.
-    fn spawn<F: Future<Output = ()> + Send + 'static>(&self, future: F) -> Self::Task;
+    fn spawn<F: Future<Output = ()> + Send + 'static>(&self, future: F);
 }
 
 #[cfg(test)]
