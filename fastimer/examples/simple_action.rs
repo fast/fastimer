@@ -66,7 +66,7 @@ fn main() {
 
         tokio::time::sleep(Duration::from_secs(5)).await;
         latch.count_down();
-        tokio::time::timeout(Duration::from_secs(5), wg)
+        fastimer::timeout(Duration::from_secs(5), wg, MakeTokioDelay)
             .await
             .unwrap();
     });

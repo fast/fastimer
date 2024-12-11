@@ -237,11 +237,13 @@ impl MakeFastimerDelay {
 }
 
 impl MakeDelay for MakeFastimerDelay {
-    fn delay_util(&self, at: Instant) -> impl Future<Output = ()> + Send {
+    type Delay = Delay;
+
+    fn delay_util(&self, at: Instant) -> Self::Delay {
         self.0.delay_until(at)
     }
 
-    fn delay(&self, duration: Duration) -> impl Future<Output = ()> + Send {
+    fn delay(&self, duration: Duration) -> Self::Delay {
         self.0.delay(duration)
     }
 }
@@ -252,12 +254,9 @@ mod tests {
     use std::time::Instant;
 
     use crate::make_instant_from_now;
-    use crate::setup_logging;
 
     #[test]
     fn test_time_driver() {
-        setup_logging();
-
         let (mut driver, context, shutdown) = super::driver();
         let (tx, rx) = std::sync::mpsc::channel();
         std::thread::spawn(move || loop {

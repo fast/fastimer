@@ -103,7 +103,7 @@ mod tests {
 
     use crate::schedule::ArbitraryDelayAction;
     use crate::schedule::ArbitraryDelayActionExt;
-    use crate::setup_logging;
+    use crate::timeout;
     use crate::tokio::MakeTokioDelay;
     use crate::tokio::TokioSpawn;
 
@@ -132,8 +132,8 @@ mod tests {
     }
 
     #[test]
-    fn test_schedule_with_fixed_delay() {
-        setup_logging();
+    fn test_schedule() {
+        let _ = logforth::stderr().try_apply();
 
         let rt = tokio::runtime::Runtime::new().unwrap();
         let wg = WaitGroup::new();
@@ -151,7 +151,7 @@ mod tests {
 
             tokio::time::sleep(Duration::from_secs(10)).await;
             latch.count_down();
-            tokio::time::timeout(Duration::from_secs(5), wg)
+            timeout(Duration::from_secs(5), wg, MakeTokioDelay)
                 .await
                 .unwrap();
         });
