@@ -2,14 +2,14 @@
 
 [![Crates.io][crates-badge]][crates-url]
 [![Documentation][docs-badge]][docs-url]
-[![MSRV 1.75][msrv-badge]](https://www.whatrustisit.com)
+[![MSRV 1.83][msrv-badge]](https://www.whatrustisit.com)
 [![Apache 2.0 licensed][license-badge]][license-url]
 [![Build Status][actions-badge]][actions-url]
 
 [crates-badge]: https://img.shields.io/crates/v/fastimer.svg
 [crates-url]: https://crates.io/crates/fastimer
 [docs-badge]: https://docs.rs/fastimer/badge.svg
-[msrv-badge]: https://img.shields.io/badge/MSRV-1.75-green?logo=rust
+[msrv-badge]: https://img.shields.io/badge/MSRV-1.83-green?logo=rust
 [docs-url]: https://docs.rs/fastimer
 [license-badge]: https://img.shields.io/crates/l/fastimer
 [license-url]: LICENSE
