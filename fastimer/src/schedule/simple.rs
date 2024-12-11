@@ -76,7 +76,12 @@ pub trait SimpleActionExt: SimpleAction {
 
             if let Some(initial_delay) = initial_delay {
                 if initial_delay > Duration::ZERO {
-                    make_delay.delay(initial_delay).await;
+                    let is_shutdown = self.is_shutdown();
+                    let delay = make_delay.delay(initial_delay);
+                    if let Either::Left(()) = select(is_shutdown, delay).await {
+                        self.teardown();
+                        return;
+                    };
                 }
             }
 
@@ -159,7 +164,12 @@ pub trait SimpleActionExt: SimpleAction {
             if let Some(initial_delay) = initial_delay {
                 if initial_delay > Duration::ZERO {
                     next = make_instant_from_now(initial_delay);
-                    make_delay.delay_util(next).await;
+                    let is_shutdown = self.is_shutdown();
+                    let delay = make_delay.delay_util(next);
+                    if let Either::Left(()) = select(is_shutdown, delay).await {
+                        self.teardown();
+                        return;
+                    };
                 }
             }
 
