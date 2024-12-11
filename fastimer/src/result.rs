@@ -24,7 +24,7 @@ use crate::Spawn;
 
 /// Repeatable scheduled action that returns a result.
 pub trait ResultAction: Send + 'static {
-    type Error: std::error::Error;
+    type Error: std::fmt::Debug;
 
     /// The name of the action.
     fn name(&self) -> &str;
