@@ -13,46 +13,48 @@
 // limitations under the License.
 
 use std::future::Future;
-use std::sync::Arc;
 use std::time::Duration;
 
+use fastimer::schedule::BaseAction;
 use fastimer::schedule::SimpleAction;
 use fastimer::schedule::SimpleActionExt;
 use fastimer::tokio::MakeTokioDelay;
 use fastimer::tokio::TokioSpawn;
-use mea::latch::Latch;
-use mea::waitgroup::WaitGroup;
 
+use crate::common::Shutdown;
+
+mod common;
+
+#[derive(Debug)]
 struct TickAction {
     count: u32,
-
-    latch: Arc<Latch>,
-    _wg: WaitGroup,
+    shutdown: Shutdown,
 }
 
-impl SimpleAction for TickAction {
+impl BaseAction for TickAction {
     fn name(&self) -> &str {
-        "tick"
-    }
-
-    async fn run(&mut self) {
-        self.count += 1;
-        println!("tick: {}", self.count);
+        "tick-fixed-delay"
     }
 
     fn is_shutdown(&self) -> impl Future<Output = ()> + Send {
-        self.latch.wait()
+        self.shutdown.is_shutdown()
+    }
+}
+
+impl SimpleAction for TickAction {
+    async fn run(&mut self) {
+        self.count += 1;
+        log::info!("tick: {}", self.count);
     }
 }
 
 fn main() {
-    let wg = WaitGroup::new();
-    let latch = Arc::new(Latch::new(1));
+    logforth::stderr().apply();
 
+    let shutdown = Shutdown::new();
     let tick = TickAction {
         count: 0,
-        latch: latch.clone(),
-        _wg: wg.clone(),
+        shutdown: shutdown.clone(),
     };
 
     let rt = tokio::runtime::Runtime::new().unwrap();
@@ -60,14 +62,12 @@ fn main() {
         tick.schedule_with_fixed_delay(
             &TokioSpawn::current(),
             MakeTokioDelay,
-            None,
+            Some(Duration::from_secs(1)),
             Duration::from_secs(1),
         );
 
-        tokio::time::sleep(Duration::from_secs(5)).await;
-        latch.count_down();
-        fastimer::timeout(Duration::from_secs(5), wg, MakeTokioDelay)
-            .await
-            .unwrap();
+        tokio::time::sleep(Duration::from_secs(10)).await;
+        shutdown.shutdown();
+        common::timeout(shutdown.await_shutdown()).await;
     });
 }

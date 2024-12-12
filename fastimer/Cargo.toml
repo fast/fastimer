@@ -14,7 +14,7 @@
 
 [package]
 name = "fastimer"
-version = "0.2.4"
+version = "0.3.0"
 
 description = "This crate implements runtime-agnostic driver for async timers and scheduled tasks."
 
@@ -36,9 +36,8 @@ tokio = ["tokio-time", "tokio-spawn"]
 tokio-spawn = ["dep:tokio", "tokio/rt-multi-thread"]
 tokio-time = ["dep:tokio", "tokio/time"]
 
-test = ["tokio", "driver", "logging"]
-
 [dependencies]
+if_chain = { version = "1.0.2" }
 pin-project = { version = "1.1.7" }
 
 atomic-waker = { version = "1.1.2", optional = true }
@@ -59,8 +58,20 @@ workspace = true
 
 [[example]]
 doc-scrape-examples = true
-name = "simple_action"
-path = "examples/simple_action.rs"
+name = "schedule_arbitrary_delay"
+path = "examples/schedule_arbitrary_delay.rs"
+required-features = ["tokio", "logging"]
+
+[[example]]
+doc-scrape-examples = true
+name = "schedule_at_fixed_rate"
+path = "examples/schedule_at_fixed_rate.rs"
+required-features = ["tokio", "logging"]
+
+[[example]]
+doc-scrape-examples = true
+name = "schedule_with_fixed_delay"
+path = "examples/schedule_with_fixed_delay.rs"
 required-features = ["tokio", "logging"]
 
 [[example]]

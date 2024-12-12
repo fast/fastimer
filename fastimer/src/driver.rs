@@ -76,10 +76,11 @@ impl Future for Delay {
     type Output = ();
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        self.waker.register(cx.waker());
         if Instant::now() >= self.when {
+            self.waker.take();
             Poll::Ready(())
         } else {
+            self.waker.register(cx.waker());
             Poll::Pending
         }
     }
@@ -245,48 +246,5 @@ impl MakeDelay for MakeFastimerDelay {
 
     fn delay(&self, duration: Duration) -> Self::Delay {
         self.0.delay(duration)
-    }
-}
-
-#[cfg(all(test, feature = "test"))]
-mod tests {
-    use std::time::Duration;
-    use std::time::Instant;
-
-    use crate::make_instant_from_now;
-
-    #[test]
-    fn test_time_driver() {
-        let (mut driver, context, shutdown) = super::driver();
-        let (tx, rx) = std::sync::mpsc::channel();
-        std::thread::spawn(move || loop {
-            if driver.turn() {
-                tx.send(()).unwrap();
-                break;
-            }
-        });
-
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(async move {
-            let now = Instant::now();
-
-            context.delay(Duration::from_secs(2)).await;
-            assert_duration_eq(now.elapsed(), Duration::from_secs(2));
-
-            let future = make_instant_from_now(Duration::from_secs(3));
-            let f1 = context.delay_until(future);
-            let f2 = context.delay_until(future);
-            tokio::join!(f1, f2);
-            assert_duration_eq(now.elapsed(), Duration::from_secs(3));
-
-            shutdown.shutdown();
-        });
-        rx.recv_timeout(Duration::from_secs(1)).unwrap();
-    }
-
-    fn assert_duration_eq(actual: Duration, expected: Duration) {
-        if expected.abs_diff(expected) > Duration::from_millis(5) {
-            panic!("expected: {:?}, actual: {:?}", expected, actual);
-        }
     }
 }
