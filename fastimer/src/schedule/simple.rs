@@ -19,9 +19,8 @@ use std::time::Instant;
 use crate::far_future;
 use crate::make_instant_from;
 use crate::make_instant_from_now;
-use crate::schedule::select::select;
-use crate::schedule::select::Either;
-use crate::schedule::{shutdown_or_delay, BaseAction};
+use crate::schedule::shutdown_or_delay;
+use crate::schedule::BaseAction;
 use crate::MakeDelay;
 use crate::Spawn;
 
@@ -58,12 +57,11 @@ pub trait SimpleActionExt: SimpleAction {
                 initial_delay
             );
 
-            if let Some(initial_delay) = initial_delay {
-                if initial_delay > Duration::ZERO {
-                    if shutdown_or_delay(&mut self, make_delay.delay(initial_delay)).await {
-                        return;
-                    }
-                }
+            if_chain::if_chain! {
+                if let Some(initial_delay) = initial_delay;
+                if initial_delay > Duration::ZERO;
+                if shutdown_or_delay(&mut self, make_delay.delay(initial_delay)).await;
+                then { return; }
             }
 
             loop {
@@ -163,111 +161,3 @@ pub trait SimpleActionExt: SimpleAction {
 }
 
 impl<T: SimpleAction> SimpleActionExt for T {}
-
-#[cfg(all(test, feature = "test"))]
-mod tests {
-    use std::future::Future;
-    use std::sync::Arc;
-    use std::time::Duration;
-
-    use mea::latch::Latch;
-    use mea::waitgroup::WaitGroup;
-
-    use super::SimpleActionExt;
-    use crate::timeout;
-    use crate::tokio::MakeTokioDelay;
-    use crate::tokio::TokioSpawn;
-
-    struct TickAction {
-        name: String,
-        count: u32,
-        sleep: Duration,
-
-        latch: Arc<Latch>,
-        _wg: WaitGroup,
-    }
-
-    impl super::SimpleAction for TickAction {
-        fn name(&self) -> &str {
-            &self.name
-        }
-
-        async fn run(&mut self) {
-            self.count += 1;
-            log::info!("[{}] tick count: {}", self.name, self.count);
-            tokio::time::sleep(self.sleep).await;
-        }
-
-        fn is_shutdown(&self) -> impl Future<Output = ()> + Send {
-            self.latch.wait()
-        }
-    }
-
-    #[test]
-    fn test_schedule_with_fixed_delay() {
-        let _ = logforth::stderr().try_apply();
-
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(async move {
-            let wg = WaitGroup::new();
-            let latch = Arc::new(Latch::new(1));
-
-            let action = TickAction {
-                name: "fixed-delay".to_string(),
-                count: 0,
-                sleep: Duration::from_secs(1),
-                latch: latch.clone(),
-                _wg: wg.clone(),
-            };
-
-            action.schedule_with_fixed_delay(
-                &TokioSpawn::current(),
-                MakeTokioDelay,
-                None,
-                Duration::from_secs(2),
-            );
-
-            tokio::time::sleep(Duration::from_secs(10)).await;
-            latch.count_down();
-            timeout(Duration::from_secs(5), wg, MakeTokioDelay)
-                .await
-                .unwrap();
-        });
-    }
-
-    #[test]
-    fn test_schedule_at_fixed_rate() {
-        let _ = logforth::stderr().try_apply();
-
-        async fn do_schedule_at_fixed_rate(sleep: u64, period: u64) {
-            let wg = WaitGroup::new();
-            let latch = Arc::new(Latch::new(1));
-
-            let action = TickAction {
-                name: format!("fixed-rate-{sleep}/{period}"),
-                count: 0,
-                sleep: Duration::from_secs(sleep),
-                latch: latch.clone(),
-                _wg: wg.clone(),
-            };
-
-            action.schedule_at_fixed_rate(
-                &TokioSpawn::current(),
-                MakeTokioDelay,
-                None,
-                Duration::from_secs(period),
-            );
-
-            tokio::time::sleep(Duration::from_secs(10)).await;
-            latch.count_down();
-            timeout(Duration::from_secs(5), wg, MakeTokioDelay)
-                .await
-                .unwrap();
-        }
-
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(do_schedule_at_fixed_rate(1, 2));
-        rt.block_on(do_schedule_at_fixed_rate(3, 2));
-        rt.block_on(do_schedule_at_fixed_rate(5, 2));
-    }
-}

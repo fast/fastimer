@@ -20,8 +20,10 @@ mod arbitrary;
 pub use arbitrary::*;
 
 mod simple;
-use crate::schedule::select::{select, Either};
 pub use simple::*;
+
+use crate::schedule::select::select;
+use crate::schedule::select::Either;
 
 mod select;
 
