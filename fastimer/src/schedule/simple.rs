@@ -21,30 +21,14 @@ use crate::make_instant_from;
 use crate::make_instant_from_now;
 use crate::schedule::select::select;
 use crate::schedule::select::Either;
+use crate::schedule::{shutdown_or_delay, BaseAction};
 use crate::MakeDelay;
 use crate::Spawn;
 
-/// Repeatable scheduled action that returns a result.
-pub trait SimpleAction: Send + 'static {
-    /// The name of the action.
-    fn name(&self) -> &str;
-
+/// Repeatable action.
+pub trait SimpleAction: BaseAction {
     /// Run the action.
     fn run(&mut self) -> impl Future<Output = ()> + Send;
-
-    /// Return a future that resolves when the action is shutdown.
-    ///
-    /// By default, this function returns a future that never resolves, i.e., the action will never
-    /// be shutdown.
-    fn is_shutdown(&self) -> impl Future<Output = ()> + Send {
-        std::future::pending()
-    }
-
-    /// A teardown hook that is called when the action is shutdown.
-    fn teardown(&mut self) {
-        #[cfg(feature = "logging")]
-        log::debug!("scheduled task {} is stopped", self.name());
-    }
 }
 
 /// An extension trait for [`SimpleAction`] that provides scheduling methods.
@@ -76,12 +60,9 @@ pub trait SimpleActionExt: SimpleAction {
 
             if let Some(initial_delay) = initial_delay {
                 if initial_delay > Duration::ZERO {
-                    let is_shutdown = self.is_shutdown();
-                    let delay = make_delay.delay(initial_delay);
-                    if let Either::Left(()) = select(is_shutdown, delay).await {
-                        self.teardown();
+                    if shutdown_or_delay(&mut self, make_delay.delay(initial_delay)).await {
                         return;
-                    };
+                    }
                 }
             }
 
@@ -90,11 +71,8 @@ pub trait SimpleActionExt: SimpleAction {
                 log::debug!("executing scheduled task {}", self.name());
                 self.run().await;
 
-                let is_shutdown = self.is_shutdown();
-                let delay = make_delay.delay(delay);
-                if let Either::Left(()) = select(is_shutdown, delay).await {
-                    self.teardown();
-                    break;
+                if shutdown_or_delay(&mut self, make_delay.delay(delay)).await {
+                    return;
                 }
             }
         });
@@ -164,12 +142,9 @@ pub trait SimpleActionExt: SimpleAction {
             if let Some(initial_delay) = initial_delay {
                 if initial_delay > Duration::ZERO {
                     next = make_instant_from_now(initial_delay);
-                    let is_shutdown = self.is_shutdown();
-                    let delay = make_delay.delay_util(next);
-                    if let Either::Left(()) = select(is_shutdown, delay).await {
-                        self.teardown();
+                    if shutdown_or_delay(&mut self, make_delay.delay_util(next)).await {
                         return;
-                    };
+                    }
                 }
             }
 
@@ -179,11 +154,8 @@ pub trait SimpleActionExt: SimpleAction {
                 self.run().await;
 
                 next = calculate_next_on_miss(next, period);
-                let is_shutdown = self.is_shutdown();
-                let delay = make_delay.delay_util(next);
-                if let Either::Left(()) = select(is_shutdown, delay).await {
-                    self.teardown();
-                    break;
+                if shutdown_or_delay(&mut self, make_delay.delay_util(next)).await {
+                    return;
                 }
             }
         });

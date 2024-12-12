@@ -14,10 +14,48 @@
 
 //! Repeatable and cancellable actions.
 
+use std::future::Future;
+
 mod arbitrary;
 pub use arbitrary::*;
 
 mod simple;
+use crate::schedule::select::{select, Either};
 pub use simple::*;
 
 mod select;
+
+/// Base trait for shutdown-able scheduled actions.
+pub trait BaseAction: Send + 'static {
+    /// The name of the trait.
+    fn name(&self) -> &str;
+
+    /// Return a future that resolves when the action is shutdown.
+    ///
+    /// By default, this function returns a future that never resolves, i.e., the action will never
+    /// be shutdown.
+    fn is_shutdown(&self) -> impl Future<Output = ()> + Send {
+        std::future::pending()
+    }
+
+    /// A teardown hook that is called when the action is shutdown.
+    fn teardown(&mut self) {}
+}
+
+/// Returns `true` if the action is shutdown.
+async fn shutdown_or_delay<A, D>(action: &mut A, delay: D) -> bool
+where
+    A: BaseAction,
+    D: Future<Output = ()>,
+{
+    let is_shutdown = action.is_shutdown();
+    match select(is_shutdown, delay).await {
+        Either::Left(()) => {
+            #[cfg(feature = "logging")]
+            log::debug!("scheduled task {} is stopped", action.name());
+            action.teardown();
+            true
+        }
+        Either::Right(()) => false,
+    }
+}

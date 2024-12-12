@@ -76,10 +76,11 @@ impl Future for Delay {
     type Output = ();
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        self.waker.register(cx.waker());
         if Instant::now() >= self.when {
+            self.waker.take();
             Poll::Ready(())
         } else {
+            self.waker.register(cx.waker());
             Poll::Pending
         }
     }
