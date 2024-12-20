@@ -62,7 +62,7 @@ fn main() {
 
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async move {
-        tick.schedule(
+        tick.schedule_with_arbitrary_delay(
             &TokioSpawn::current(),
             MakeTokioDelay,
             Some(Duration::from_secs(1)),
