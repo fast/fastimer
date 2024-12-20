@@ -19,13 +19,16 @@ use std::future::Future;
 mod arbitrary;
 pub use arbitrary::*;
 
+mod notify;
+pub use notify::*;
+
 mod simple;
 pub use simple::*;
 
+mod select;
+
 use crate::schedule::select::select;
 use crate::schedule::select::Either;
-
-mod select;
 
 /// Base trait for shutdown-able scheduled actions.
 pub trait BaseAction: Send + 'static {

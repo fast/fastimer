@@ -49,8 +49,7 @@ tokio = { version = "1.42.0", optional = true }
 [dev-dependencies]
 log = { version = "0.4.22", features = ["kv"] }
 logforth = { version = "0.19.0" }
-mea = { version = "0.0.6" }
-pollster = { version = "0.4.0" }
+mea = { version = "0.1.2" }
 tokio = { version = "1.42.0", features = ["full"] }
 
 [lints]
@@ -58,14 +57,20 @@ workspace = true
 
 [[example]]
 doc-scrape-examples = true
-name = "schedule_arbitrary_delay"
-path = "examples/schedule_arbitrary_delay.rs"
+name = "schedule_at_fixed_rate"
+path = "examples/schedule_at_fixed_rate.rs"
 required-features = ["tokio", "logging"]
 
 [[example]]
 doc-scrape-examples = true
-name = "schedule_at_fixed_rate"
-path = "examples/schedule_at_fixed_rate.rs"
+name = "schedule_by_notify"
+path = "examples/schedule_by_notify.rs"
+required-features = ["tokio", "logging"]
+
+[[example]]
+doc-scrape-examples = true
+name = "schedule_with_arbitrary_delay"
+path = "examples/schedule_with_arbitrary_delay.rs"
 required-features = ["tokio", "logging"]
 
 [[example]]

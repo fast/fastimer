@@ -14,31 +14,41 @@
 
 use std::future::Future;
 use std::time::Duration;
-use std::time::Instant;
 
 use crate::schedule::shutdown_or_delay;
 use crate::schedule::BaseAction;
 use crate::MakeDelay;
 use crate::Spawn;
 
-/// Repeatable action that can be scheduled with arbitrary delay.
-pub trait ArbitraryDelayAction: BaseAction {
+/// Repeatable action that can be scheduled by notifications.
+pub trait NotifyAction: BaseAction {
     /// Run the action.
+    fn run(&mut self) -> impl Future<Output = ()> + Send;
+
+    /// Return a future that resolves when the action is notified.
     ///
-    /// Return an Instant that indicates when to schedule the next run.
-    fn run(&mut self) -> impl Future<Output = Instant> + Send;
+    /// The future should return `true` if the action should be stopped, and `false` if the action
+    /// should be rescheduled.
+    ///
+    /// By default, this function calls [`is_shutdown`] to exit the action, and thus never
+    /// reschedule the action. Implementations can override this method to provide custom
+    /// notification logic, while still selects on [`is_shutdown`] to allow exiting the action.
+    ///
+    /// [`is_shutdown`]: BaseAction::is_shutdown
+    fn notified(&mut self) -> impl Future<Output = bool> + Send {
+        async move {
+            self.is_shutdown().await;
+            true
+        }
+    }
 }
 
-/// An extension trait for [`ArbitraryDelayAction`] that provides scheduling methods.
-pub trait ArbitraryDelayActionExt: ArbitraryDelayAction {
+/// An extension trait for [`NotifyAction`] that provides scheduling methods.
+pub trait NotifyActionExt: NotifyAction {
     /// Creates and executes a repeatable action that becomes enabled first after the given
-    /// `initial_delay`, and subsequently based on the result of the action.
-    fn schedule_with_arbitrary_delay<S, D>(
-        mut self,
-        spawn: &S,
-        make_delay: D,
-        initial_delay: Option<Duration>,
-    ) where
+    /// `initial_delay`, and subsequently when it is notified.
+    fn schedule_by_notify<S, D>(mut self, spawn: &S, make_delay: D, initial_delay: Option<Duration>)
+    where
         Self: Sized,
         S: Spawn,
         D: MakeDelay,
@@ -61,9 +71,12 @@ pub trait ArbitraryDelayActionExt: ArbitraryDelayAction {
             loop {
                 #[cfg(feature = "logging")]
                 log::debug!("executing scheduled task {}", self.name());
-                let next = self.run().await;
+                self.run().await;
 
-                if shutdown_or_delay(&mut self, make_delay.delay_util(next)).await {
+                if self.notified().await {
+                    #[cfg(feature = "logging")]
+                    log::debug!("scheduled task {} is stopped", self.name());
+                    self.teardown();
                     return;
                 }
             }
@@ -71,4 +84,4 @@ pub trait ArbitraryDelayActionExt: ArbitraryDelayAction {
     }
 }
 
-impl<T: ArbitraryDelayAction> ArbitraryDelayActionExt for T {}
+impl<T: NotifyAction> NotifyActionExt for T {}
