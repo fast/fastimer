@@ -22,6 +22,8 @@ use crate::MakeDelay;
 use crate::Spawn;
 
 /// Repeatable action that can be scheduled with arbitrary delay.
+///
+/// See [`ArbitraryDelayActionExt`] for scheduling methods.
 pub trait ArbitraryDelayAction: BaseAction {
     /// Run the action.
     ///

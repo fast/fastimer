@@ -22,7 +22,11 @@ Fastimer implements runtime-agnostic driver for async timers and scheduled tasks
 
 ### Scheduled Actions
 
-Fastimer provides [`SimpleAction`](https://docs.rs/fastimer/latest/fastimer/schedule/trait.SimpleAction.html) and [`ArbitraryDelayAction`](https://docs.rs/fastimer/latest/fastimer/schedule/trait.ArbitraryDelayAction.html) that can be scheduled as a repeating and cancellable action.
+Fastimer provides multiple abstractions that can be scheduled as a repeating and cancellable action:
+
+* [`SimpleAction`](https://docs.rs/fastimer/latest/fastimer/schedule/trait.SimpleAction.html): A simple action that can be scheduled with fixed delay or at fixed rate.
+* [`ArbitraryDelayAction`](https://docs.rs/fastimer/latest/fastimer/schedule/trait.ArbitraryDelayAction.html): An action that can be scheduled with arbitrary delay.
+* [`NotifyAction`](https://docs.rs/fastimer/latest/fastimer/schedule/trait.NotifyAction.html): An action that can be scheduled by notifications.
 
 ### Timeout
 

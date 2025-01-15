@@ -25,6 +25,8 @@ use crate::MakeDelay;
 use crate::Spawn;
 
 /// Repeatable action.
+///
+/// See [`SimpleActionExt`] for scheduling methods.
 pub trait SimpleAction: BaseAction {
     /// Run the action.
     fn run(&mut self) -> impl Future<Output = ()> + Send;

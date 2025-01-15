@@ -21,6 +21,8 @@ use crate::MakeDelay;
 use crate::Spawn;
 
 /// Repeatable action that can be scheduled by notifications.
+///
+/// See [`NotifyActionExt`] for scheduling methods.
 pub trait NotifyAction: BaseAction {
     /// Run the action.
     fn run(&mut self) -> impl Future<Output = ()> + Send;
