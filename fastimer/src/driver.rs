@@ -21,7 +21,6 @@ use std::pin::Pin;
 use std::sync::atomic;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
-use std::sync::LazyLock;
 use std::task::Context;
 use std::task::Poll;
 use std::time::Duration;
@@ -90,27 +89,6 @@ impl Drop for Delay {
     fn drop(&mut self) {
         self.waker.take();
     }
-}
-
-/// Returns the global time context and shutdown handle.
-///
-/// The first call to this function initializes the global time driver and spawns a thread to drive
-/// it. Subsequent calls return the same context and shutdown handle.
-pub fn static_context() -> &'static TimeContext {
-    static CONTEXT: LazyLock<TimeContext> = LazyLock::new(|| {
-        let (mut driver, context, _) = driver();
-        std::thread::Builder::new()
-            .name("fastimer-global".to_string())
-            .spawn(move || loop {
-                if driver.turn() {
-                    break;
-                }
-            })
-            .expect("cannot spawn fastimer-global thread");
-        context
-    });
-
-    &CONTEXT
 }
 
 /// Returns a new time driver, its time context and the shutdown handle.
