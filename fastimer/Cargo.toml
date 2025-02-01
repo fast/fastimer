@@ -14,7 +14,7 @@
 
 [package]
 name = "fastimer"
-version = "0.4.1"
+version = "0.5.0"
 
 description = "This crate implements runtime-agnostic driver for async timers and scheduled tasks."
 
@@ -48,8 +48,8 @@ tokio = { version = "1.42.0", optional = true }
 
 [dev-dependencies]
 log = { version = "0.4.22", features = ["kv"] }
-logforth = { version = "0.19.0" }
-mea = { version = "0.1.2" }
+logforth = { version = "0.21.0" }
+mea = { version = "0.2.0" }
 tokio = { version = "1.42.0", features = ["full"] }
 
 [lints]
@@ -78,6 +78,12 @@ doc-scrape-examples = true
 name = "schedule_with_fixed_delay"
 path = "examples/schedule_with_fixed_delay.rs"
 required-features = ["tokio", "logging"]
+
+[[example]]
+doc-scrape-examples = true
+name = "static_time_driver"
+path = "examples/static_time_driver.rs"
+required-features = ["driver"]
 
 [[example]]
 doc-scrape-examples = true
