@@ -13,27 +13,31 @@
 // limitations under the License.
 
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![deny(missing_docs)]
 
-//! Fastimer implements runtime-agnostic driver for async timers and scheduled actions.
+//! Fastimer implements runtime-agnostic timer traits and utilities.
 //!
 //! # Scheduled Actions
 //!
-//! Fastimer provides [`SimpleAction`] and [`ArbitraryDelayAction`] that can be
-//! scheduled as a repeating and cancellable action.
+//! Fastimer provides scheduled actions that can be scheduled as a repeating and cancellable action.
+//!
+//! * [`SimpleAction`]: A simple repeatable action that can be scheduled with a fixed delay, or at a
+//!   fixed rate.
+//! * [`ArbitraryDelayAction`]: A repeatable action that can be scheduled with arbitrary delay.
+//! * [`NotifyAction`]: A repeatable action that can be scheduled by notifications.
 //!
 //! # Timeout
 //!
 //! [`Timeout`] is a future combinator that completes when the inner future completes or when the
 //! timeout expires.
 //!
-//! # Time Driver
+//! # Interval
 //!
-//! [`TimeDriver`] is a runtime-agnostic time driver for creating delay futures. To use the
-//! time driver, you need to enable the `driver` feature flag.
+//! [`Interval`] ticks at a sequence of instants with a certain duration between each instant.
 //!
 //! [`SimpleAction`]: schedule::SimpleAction
 //! [`ArbitraryDelayAction`]: schedule::ArbitraryDelayAction
-//! [`TimeDriver`]: driver::TimeDriver
+//! [`NotifyAction`]: schedule::NotifyAction
 
 use std::future::Future;
 use std::future::IntoFuture;
@@ -43,6 +47,10 @@ use std::time::Duration;
 use std::time::Instant;
 
 mod macros;
+
+mod interval;
+pub use interval::*;
+
 pub mod schedule;
 
 /// Create a far future instant.
