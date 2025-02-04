@@ -13,7 +13,7 @@
 # limitations under the License.
 
 [workspace]
-members = ["fastimer", "xtask"]
+members = ["fastimer", "fastimer-tokio", "xtask"]
 resolver = "2"
 
 [workspace.package]
@@ -23,6 +23,11 @@ license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/fast/fastimer"
 rust-version = "1.83.0"
+version = "0.5.0"
+
+[workspace.dependencies]
+fastimer = { version = "0.5.0", path = "fastimer" }
+tokio = { version = "1.43.0" }
 
 [workspace.lints.rust]
 unknown_lints = "deny"
