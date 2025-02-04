@@ -15,10 +15,11 @@
 use std::future::Future;
 use std::time::Duration;
 
+use crate::debug;
 use crate::schedule::initial_delay_or_shutdown;
 use crate::schedule::BaseAction;
+use crate::MakeDelay;
 use crate::Spawn;
-use crate::{debug, MakeDelay};
 
 /// Repeatable action that can be scheduled by notifications.
 ///
@@ -49,12 +50,8 @@ pub trait NotifyAction: BaseAction {
 pub trait NotifyActionExt: NotifyAction {
     /// Creates and executes a repeatable action that becomes enabled first after the given
     /// `initial_delay`, and subsequently when it is notified.
-    fn schedule_by_notify<S, D>(
-        mut self,
-        spawn: &S,
-        mut make_delay: D,
-        initial_delay: Option<Duration>,
-    ) where
+    fn schedule_by_notify<S, D>(mut self, spawn: &S, make_delay: D, initial_delay: Option<Duration>)
+    where
         Self: Sized,
         S: Spawn,
         D: MakeDelay,
@@ -66,9 +63,10 @@ pub trait NotifyActionExt: NotifyAction {
                 initial_delay
             );
 
-            if initial_delay_or_shutdown(&mut self, &mut make_delay, initial_delay).await {
-                return;
-            }
+            match initial_delay_or_shutdown(&mut self, make_delay, initial_delay).await {
+                Some(..) => {}
+                None => return,
+            };
 
             loop {
                 debug!("executing scheduled task {}", self.name());

@@ -24,8 +24,10 @@ mod notify;
 pub use notify::*;
 
 mod simple;
-use crate::{debug, MakeDelay};
 pub use simple::*;
+
+use crate::debug;
+use crate::MakeDelay;
 
 mod select;
 
@@ -49,25 +51,30 @@ pub trait BaseAction: Send + 'static {
     fn teardown(&mut self) {}
 }
 
-/// Returns `true` if the action is shutdown.
+/// Returns `None` if the action is shutdown; otherwise, returns `Some(make_delay)`
+/// to give back the `make_delay` for further scheduling.
 async fn initial_delay_or_shutdown<A, D>(
     action: &mut A,
-    make_delay: &mut D,
+    make_delay: D,
     initial_delay: Option<Duration>,
-) -> bool
+) -> Option<D>
 where
     A: BaseAction,
     D: MakeDelay,
 {
-    let Some(delay) = initial_delay else {
-        return false;
+    let Some(initial_delay) = initial_delay else {
+        return Some(make_delay);
     };
 
-    if delay.is_zero() {
-        return false;
+    if initial_delay.is_zero() {
+        return Some(make_delay);
     }
 
-    delay_or_shutdown(action, make_delay.delay(delay)).await
+    if delay_or_shutdown(action, make_delay.delay(initial_delay)).await {
+        None
+    } else {
+        Some(make_delay)
+    }
 }
 
 /// Returns `true` if the action is shutdown.

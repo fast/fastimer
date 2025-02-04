@@ -22,6 +22,6 @@ macro_rules! debug {
 #[cfg(not(feature = "logging"))]
 #[macro_export]
 macro_rules! debug {
-    (target: $target:expr, $($arg:tt)+) => ();
-    ($($arg:tt)+) => ();
+    (target: $target:expr, $($arg:tt)+) => {};
+    ($($arg:tt)+) => {};
 }

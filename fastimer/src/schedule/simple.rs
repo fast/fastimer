@@ -16,13 +16,15 @@ use std::future::Future;
 use std::time::Duration;
 use std::time::Instant;
 
+use crate::debug;
+use crate::far_future;
 use crate::make_instant_from;
 use crate::make_instant_from_now;
+use crate::schedule::delay_or_shutdown;
+use crate::schedule::initial_delay_or_shutdown;
 use crate::schedule::BaseAction;
-use crate::schedule::{delay_or_shutdown, initial_delay_or_shutdown};
 use crate::MakeDelay;
 use crate::Spawn;
-use crate::{debug, far_future};
 
 /// Repeatable action.
 ///
@@ -42,7 +44,7 @@ pub trait SimpleActionExt: SimpleAction {
     fn schedule_with_fixed_delay<S, D>(
         mut self,
         spawn: &S,
-        mut make_delay: D,
+        make_delay: D,
         initial_delay: Option<Duration>,
         delay: Duration,
     ) where
@@ -58,9 +60,11 @@ pub trait SimpleActionExt: SimpleAction {
                 initial_delay
             );
 
-            if initial_delay_or_shutdown(&mut self, &mut make_delay, initial_delay).await {
-                return;
-            }
+            let make_delay =
+                match initial_delay_or_shutdown(&mut self, make_delay, initial_delay).await {
+                    Some(make_delay) => make_delay,
+                    None => return,
+                };
 
             loop {
                 debug!("executing scheduled task {}", self.name());
