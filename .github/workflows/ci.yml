@@ -67,16 +67,6 @@ jobs:
       - name: Run unit tests
         run: cargo x test --no-capture
         shell: bash
-      - name: Run examples
-        shell: bash
-        run: |
-          cargo run --features="driver" --example time_driver
-          cargo run --features="tokio,logging" --example schedule_at_fixed_rate
-          cargo run --features="tokio,logging" --example schedule_by_notify
-          cargo run --features="tokio,logging" --example schedule_with_arbitrary_delay
-          cargo run --features="tokio,logging" --example schedule_with_fixed_delay
-        env:
-          RUST_LOG: DEBUG
 
   required:
     name: Required

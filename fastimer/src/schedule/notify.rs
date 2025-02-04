@@ -15,7 +15,8 @@
 use std::future::Future;
 use std::time::Duration;
 
-use crate::schedule::shutdown_or_delay;
+use crate::debug;
+use crate::schedule::initial_delay_or_shutdown;
 use crate::schedule::BaseAction;
 use crate::MakeDelay;
 use crate::Spawn;
@@ -56,28 +57,23 @@ pub trait NotifyActionExt: NotifyAction {
         D: MakeDelay,
     {
         spawn.spawn(async move {
-            #[cfg(feature = "logging")]
-            log::debug!(
+            debug!(
                 "start scheduled task {} with initial delay {:?}",
                 self.name(),
                 initial_delay
             );
 
-            if_chain::if_chain! {
-                if let Some(initial_delay) = initial_delay;
-                if initial_delay > Duration::ZERO;
-                if shutdown_or_delay(&mut self, make_delay.delay(initial_delay)).await;
-                then { return; }
-            }
+            match initial_delay_or_shutdown(&mut self, make_delay, initial_delay).await {
+                Some(..) => {}
+                None => return,
+            };
 
             loop {
-                #[cfg(feature = "logging")]
-                log::debug!("executing scheduled task {}", self.name());
+                debug!("executing scheduled task {}", self.name());
                 self.run().await;
 
                 if self.notified().await {
-                    #[cfg(feature = "logging")]
-                    log::debug!("scheduled task {} is stopped", self.name());
+                    debug!("scheduled task {} is stopped", self.name());
                     self.teardown();
                     return;
                 }

@@ -15,6 +15,7 @@
 //! Repeatable and cancellable actions.
 
 use std::future::Future;
+use std::time::Duration;
 
 mod arbitrary;
 pub use arbitrary::*;
@@ -24,6 +25,9 @@ pub use notify::*;
 
 mod simple;
 pub use simple::*;
+
+use crate::debug;
+use crate::MakeDelay;
 
 mod select;
 
@@ -47,8 +51,34 @@ pub trait BaseAction: Send + 'static {
     fn teardown(&mut self) {}
 }
 
+/// Returns `None` if the action is shutdown; otherwise, returns `Some(make_delay)`
+/// to give back the `make_delay` for further scheduling.
+async fn initial_delay_or_shutdown<A, D>(
+    action: &mut A,
+    make_delay: D,
+    initial_delay: Option<Duration>,
+) -> Option<D>
+where
+    A: BaseAction,
+    D: MakeDelay,
+{
+    let Some(initial_delay) = initial_delay else {
+        return Some(make_delay);
+    };
+
+    if initial_delay.is_zero() {
+        return Some(make_delay);
+    }
+
+    if delay_or_shutdown(action, make_delay.delay(initial_delay)).await {
+        None
+    } else {
+        Some(make_delay)
+    }
+}
+
 /// Returns `true` if the action is shutdown.
-async fn shutdown_or_delay<A, D>(action: &mut A, delay: D) -> bool
+async fn delay_or_shutdown<A, D>(action: &mut A, delay: D) -> bool
 where
     A: BaseAction,
     D: Future<Output = ()>,
@@ -56,8 +86,7 @@ where
     let is_shutdown = action.is_shutdown();
     match select(is_shutdown, delay).await {
         Either::Left(()) => {
-            #[cfg(feature = "logging")]
-            log::debug!("scheduled task {} is stopped", action.name());
+            debug!("scheduled task {} is stopped", action.name());
             action.teardown();
             true
         }
