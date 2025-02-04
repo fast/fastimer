@@ -42,12 +42,8 @@ use std::task::Poll;
 use std::time::Duration;
 use std::time::Instant;
 
+mod macros;
 pub mod schedule;
-
-#[cfg(feature = "driver")]
-pub mod driver;
-#[cfg(any(feature = "tokio-time", feature = "tokio-spawn"))]
-pub mod tokio;
 
 /// Create a far future instant.
 pub fn far_future() -> Instant {

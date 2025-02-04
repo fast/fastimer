@@ -16,13 +16,13 @@ use std::future::Future;
 use std::time::Duration;
 use std::time::Instant;
 
-use crate::far_future;
 use crate::make_instant_from;
 use crate::make_instant_from_now;
-use crate::schedule::shutdown_or_delay;
 use crate::schedule::BaseAction;
+use crate::schedule::{delay_or_shutdown, initial_delay_or_shutdown};
 use crate::MakeDelay;
 use crate::Spawn;
+use crate::{debug, far_future};
 
 /// Repeatable action.
 ///
@@ -42,7 +42,7 @@ pub trait SimpleActionExt: SimpleAction {
     fn schedule_with_fixed_delay<S, D>(
         mut self,
         spawn: &S,
-        make_delay: D,
+        mut make_delay: D,
         initial_delay: Option<Duration>,
         delay: Duration,
     ) where
@@ -51,27 +51,22 @@ pub trait SimpleActionExt: SimpleAction {
         D: MakeDelay,
     {
         spawn.spawn(async move {
-            #[cfg(feature = "logging")]
-            log::debug!(
+            debug!(
                 "start scheduled task {} with fixed delay {:?} and initial delay {:?}",
                 self.name(),
                 delay,
                 initial_delay
             );
 
-            if_chain::if_chain! {
-                if let Some(initial_delay) = initial_delay;
-                if initial_delay > Duration::ZERO;
-                if shutdown_or_delay(&mut self, make_delay.delay(initial_delay)).await;
-                then { return; }
+            if initial_delay_or_shutdown(&mut self, &mut make_delay, initial_delay).await {
+                return;
             }
 
             loop {
-                #[cfg(feature = "logging")]
-                log::debug!("executing scheduled task {}", self.name());
+                debug!("executing scheduled task {}", self.name());
                 self.run().await;
 
-                if shutdown_or_delay(&mut self, make_delay.delay(delay)).await {
+                if delay_or_shutdown(&mut self, make_delay.delay(delay)).await {
                     return;
                 }
             }
@@ -130,8 +125,7 @@ pub trait SimpleActionExt: SimpleAction {
         }
 
         spawn.spawn(async move {
-            #[cfg(feature = "logging")]
-            log::debug!(
+            debug!(
                 "start scheduled task {} at fixed rate {:?} with initial delay {:?}",
                 self.name(),
                 period,
@@ -142,19 +136,18 @@ pub trait SimpleActionExt: SimpleAction {
             if let Some(initial_delay) = initial_delay {
                 if initial_delay > Duration::ZERO {
                     next = make_instant_from_now(initial_delay);
-                    if shutdown_or_delay(&mut self, make_delay.delay_util(next)).await {
+                    if delay_or_shutdown(&mut self, make_delay.delay_util(next)).await {
                         return;
                     }
                 }
             }
 
             loop {
-                #[cfg(feature = "logging")]
-                log::debug!("executing scheduled task {}", self.name());
+                debug!("executing scheduled task {}", self.name());
                 self.run().await;
 
                 next = calculate_next_on_miss(next, period);
-                if shutdown_or_delay(&mut self, make_delay.delay_util(next)).await {
+                if delay_or_shutdown(&mut self, make_delay.delay_util(next)).await {
                     return;
                 }
             }

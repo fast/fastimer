@@ -16,9 +16,9 @@ use std::future::Future;
 use std::time::Duration;
 use std::time::Instant;
 
-use crate::schedule::shutdown_or_delay;
+use crate::schedule::{delay_or_shutdown, initial_delay_or_shutdown};
 use crate::schedule::BaseAction;
-use crate::MakeDelay;
+use crate::{debug, MakeDelay};
 use crate::Spawn;
 
 /// Repeatable action that can be scheduled with arbitrary delay.
@@ -38,7 +38,7 @@ pub trait ArbitraryDelayActionExt: ArbitraryDelayAction {
     fn schedule_with_arbitrary_delay<S, D>(
         mut self,
         spawn: &S,
-        make_delay: D,
+        mut make_delay: D,
         initial_delay: Option<Duration>,
     ) where
         Self: Sized,
@@ -46,26 +46,21 @@ pub trait ArbitraryDelayActionExt: ArbitraryDelayAction {
         D: MakeDelay,
     {
         spawn.spawn(async move {
-            #[cfg(feature = "logging")]
-            log::debug!(
+            debug!(
                 "start scheduled task {} with initial delay {:?}",
                 self.name(),
                 initial_delay
             );
 
-            if_chain::if_chain! {
-                if let Some(initial_delay) = initial_delay;
-                if initial_delay > Duration::ZERO;
-                if shutdown_or_delay(&mut self, make_delay.delay(initial_delay)).await;
-                then { return; }
+            if initial_delay_or_shutdown(&mut self, &mut make_delay, initial_delay).await {
+                return;
             }
 
             loop {
-                #[cfg(feature = "logging")]
-                log::debug!("executing scheduled task {}", self.name());
+                debug!("executing scheduled task {}", self.name());
                 let next = self.run().await;
 
-                if shutdown_or_delay(&mut self, make_delay.delay_util(next)).await {
+                if delay_or_shutdown(&mut self, make_delay.delay_util(next)).await {
                     return;
                 }
             }
