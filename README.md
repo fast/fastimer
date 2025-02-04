@@ -18,23 +18,23 @@
 
 ## Overview
 
-Fastimer implements runtime-agnostic driver for async timers and scheduled tasks.
+Fastimer implements runtime-agnostic timer traits and utilities.
 
 ### Scheduled Actions
 
-Fastimer provides multiple abstractions that can be scheduled as a repeating and cancellable action:
+Fastimer provides scheduled actions that can be scheduled as a repeating and cancellable action.
 
-* [`SimpleAction`](https://docs.rs/fastimer/latest/fastimer/schedule/trait.SimpleAction.html): A simple action that can be scheduled with fixed delay or at fixed rate.
-* [`ArbitraryDelayAction`](https://docs.rs/fastimer/latest/fastimer/schedule/trait.ArbitraryDelayAction.html): An action that can be scheduled with arbitrary delay.
-* [`NotifyAction`](https://docs.rs/fastimer/latest/fastimer/schedule/trait.NotifyAction.html): An action that can be scheduled by notifications.
+* `SimpleAction`: A simple repeatable action that can be scheduled with a fixed delay, or at a fixed rate.
+* `ArbitraryDelayAction`: A repeatable action that can be scheduled with arbitrary delay.
+* `NotifyAction`: A repeatable action that can be scheduled by notifications.
 
 ### Timeout
 
-[`Timeout`](https://docs.rs/fastimer/latest/fastimer/struct.Timeout.html) is a future combinator that completes when the inner future completes or when the timeout expires.
+* `Timeout` is a future combinator that completes when the inner future completes or when the timeout expires.
 
-### Time Driver
+### Interval
 
-[`TimeDriver`](https://docs.rs/fastimer/latest/fastimer/driver/struct.TimeDriver.html) is a runtime-agnostic time driver for creating delay futures. To use the time driver, you need to enable the driver feature flag.
+* `Interval` ticks at a sequence of instants with a certain duration between each instant.
 
 ## Installation
 
@@ -47,6 +47,12 @@ cargo add fastimer
 ## Documentation
 
 Read the online documents at https://docs.rs/fastimer.
+
+## Minimum Supported Rust Version (MSRV)
+
+This crate is built against the latest stable release, and its minimum supported rustc version is 1.80.0.
+
+The policy is that the minimum Rust version required to use this crate can be increased in minor version updates. For example, if Fastimer 1.0 requires Rust 1.20.0, then Fastimer 1.0.z for all values of z will also require Rust 1.20.0 or newer. However, Fastimer 1.y for y > 0 may require a newer minimum version of Rust.
 
 ## License
 

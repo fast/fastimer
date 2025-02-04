@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #[cfg(feature = "logging")]
+/// A wrapper over the `log::debug!` macro.
 #[macro_export]
 macro_rules! debug {
     (target: $target:expr, $($arg:tt)+) => (log::debug!(target: $target, $($arg)+));
@@ -20,6 +21,7 @@ macro_rules! debug {
 }
 
 #[cfg(not(feature = "logging"))]
+/// A wrapper over the `log::debug!` macro.
 #[macro_export]
 macro_rules! debug {
     (target: $target:expr, $($arg:tt)+) => {};
