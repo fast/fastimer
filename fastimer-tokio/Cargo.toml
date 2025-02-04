@@ -13,9 +13,9 @@
 # limitations under the License.
 
 [package]
-name = "fastimer"
+name = "fastimer-tokio"
 
-description = "This crates implements runtime-agnostic timer traits and utilities."
+description = "This crates provides tokio runtime integration for fastimer."
 
 edition.workspace = true
 homepage.workspace = true
@@ -30,16 +30,12 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-logging = ["dep:log"]
+spawn = ["dep:fastimer", "dep:tokio", "tokio/rt"]
+time = ["dep:fastimer", "dep:tokio", "tokio/time"]
 
 [dependencies]
-pin-project = { version = "1.1.9" }
-
-# optional dependencies
-log = { version = "0.4.22", features = ["kv"], optional = true }
-
-[dev-dependencies]
-tokio = { version = "1.43.0", features = ["full"] }
+fastimer = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true }
 
 [lints]
 workspace = true
