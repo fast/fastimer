@@ -13,9 +13,9 @@
 # limitations under the License.
 
 [package]
-name = "fastimer"
+name = "fastimer-driver"
 
-description = "This crates implements runtime-agnostic timer traits and utilities."
+description = "This crate implements a timer driver that can work with any async runtime scheduler."
 
 edition.workspace = true
 homepage.workspace = true
@@ -29,14 +29,11 @@ version.workspace = true
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
-[features]
-logging = ["dep:log"]
-
 [dependencies]
-pin-project = { version = "1.1.9" }
-
-# optional dependencies
-log = { version = "0.4.22", features = ["kv"], optional = true }
+atomic-waker = { version = "1.1.2" }
+crossbeam-queue = { version = "0.3.12" }
+fastimer = { workspace = true }
+parking = { version = "2.2.1" }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }
