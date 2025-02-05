@@ -16,8 +16,7 @@ use std::time::Duration;
 use std::time::Instant;
 
 use fastimer::make_instant_from_now;
-
-use crate::driver;
+use fastimer_driver::binary_heap_driver;
 
 fn assert_duration_eq(actual: Duration, expected: Duration) {
     if expected.abs_diff(expected) > Duration::from_millis(5) {
@@ -26,11 +25,11 @@ fn assert_duration_eq(actual: Duration, expected: Duration) {
 }
 
 #[test]
-fn test_simple_driver() {
-    let (mut driver, context, shutdown) = driver();
+fn test_binary_heap_driver() {
+    let (mut driver, context, shutdown) = binary_heap_driver();
     let (tx, rx) = std::sync::mpsc::channel();
     std::thread::spawn(move || loop {
-        if driver.turn() {
+        if driver.turn().is_break() {
             tx.send(()).unwrap();
             break;
         }

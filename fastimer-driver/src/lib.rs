@@ -18,7 +18,6 @@
 //! Runtime-agnostic time driver for creating delay futures.
 
 use std::cmp;
-use std::collections::BinaryHeap;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::atomic;
@@ -33,11 +32,13 @@ use atomic_waker::AtomicWaker;
 use crossbeam_queue::SegQueue;
 use fastimer::make_instant_from_now;
 use fastimer::MakeDelay;
-use parking::Parker;
 use parking::Unparker;
 
-#[cfg(test)]
-mod tests;
+mod heap;
+pub use heap::*;
+
+mod timewheel;
+pub use timewheel::*;
 
 #[derive(Debug)]
 struct TimeEntry {
@@ -55,7 +56,7 @@ impl Eq for TimeEntry {}
 
 impl PartialOrd for TimeEntry {
     fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
-        Some(self.when.cmp(&other.when))
+        self.when.partial_cmp(&other.when)
     }
 }
 
@@ -96,34 +97,6 @@ impl Drop for Delay {
     }
 }
 
-/// Returns a new time driver, its time context and the shutdown handle.
-pub fn driver() -> (TimeDriver, TimeContext, TimeDriverShutdown) {
-    let (parker, unparker) = parking::pair();
-    let timers = BinaryHeap::new();
-    let inbounds = Arc::new(SegQueue::new());
-    let shutdown = Arc::new(AtomicBool::new(false));
-
-    let driver = TimeDriver {
-        parker,
-        unparker,
-        timers,
-        inbounds,
-        shutdown,
-    };
-
-    let context = TimeContext {
-        unparker: driver.unparker.clone(),
-        inbounds: driver.inbounds.clone(),
-    };
-
-    let shutdown = TimeDriverShutdown {
-        unparker: driver.unparker.clone(),
-        shutdown: driver.shutdown.clone(),
-    };
-
-    (driver, context, shutdown)
-}
-
 /// A time context for creating [`Delay`]s.
 #[derive(Debug, Clone)]
 pub struct TimeContext {
@@ -162,50 +135,6 @@ impl TimeDriverShutdown {
     pub fn shutdown(&self) {
         self.shutdown.store(true, atomic::Ordering::Release);
         self.unparker.unpark();
-    }
-}
-
-/// A time driver that drives registered timers.
-#[derive(Debug)]
-pub struct TimeDriver {
-    parker: Parker,
-    unparker: Unparker,
-    timers: BinaryHeap<TimeEntry>,
-    inbounds: Arc<SegQueue<TimeEntry>>,
-    shutdown: Arc<AtomicBool>,
-}
-
-impl TimeDriver {
-    /// Drives the timers and returns `true` if the driver has been shut down.
-    pub fn turn(&mut self) -> bool {
-        if self.shutdown.load(atomic::Ordering::Acquire) {
-            return true;
-        }
-
-        match self.timers.peek() {
-            None => self.parker.park(),
-            Some(entry) => {
-                let delta = entry.when.saturating_duration_since(Instant::now());
-                if delta > Duration::ZERO {
-                    self.parker.park_timeout(delta);
-                }
-            }
-        }
-
-        while let Some(entry) = self.inbounds.pop() {
-            self.timers.push(entry);
-        }
-
-        while let Some(entry) = self.timers.peek() {
-            if entry.when <= Instant::now() {
-                entry.waker.wake();
-                let _ = self.timers.pop();
-            } else {
-                break;
-            }
-        }
-
-        self.shutdown.load(atomic::Ordering::Acquire)
     }
 }
 
