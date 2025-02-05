@@ -13,7 +13,7 @@
 # limitations under the License.
 
 [workspace]
-members = ["fastimer", "fastimer-tokio", "xtask"]
+members = ["fastimer", "fastimer-driver", "fastimer-tokio", "xtask"]
 resolver = "2"
 
 [workspace.package]
