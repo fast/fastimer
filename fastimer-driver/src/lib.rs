@@ -37,9 +37,6 @@ use parking::Unparker;
 mod heap;
 pub use heap::*;
 
-mod timewheel;
-pub use timewheel::*;
-
 #[derive(Debug)]
 struct TimeEntry {
     when: Instant,
@@ -56,7 +53,7 @@ impl Eq for TimeEntry {}
 
 impl PartialOrd for TimeEntry {
     fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
-        self.when.partial_cmp(&other.when)
+        Some(self.cmp(other))
     }
 }
 
