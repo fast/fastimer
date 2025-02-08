@@ -37,5 +37,8 @@ time = ["dep:fastimer", "dep:tokio", "tokio/time"]
 fastimer = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
 
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }
+
 [lints]
 workspace = true

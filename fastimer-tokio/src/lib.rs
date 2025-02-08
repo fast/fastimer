@@ -31,7 +31,7 @@ mod delay {
     #[derive(Clone, Copy, Debug, Default)]
     pub struct MakeTokioDelay;
 
-    impl MakeDelay for MakeTokioDelay {
+    impl MakeDelay for &'static MakeTokioDelay {
         type Delay = tokio::time::Sleep;
 
         fn delay_util(&self, at: Instant) -> Self::Delay {
