@@ -54,7 +54,7 @@ pub trait NotifyActionExt: NotifyAction {
     where
         Self: Sized,
         S: Spawn,
-        D: MakeDelay,
+        D: MakeDelay + Send + 'static,
     {
         spawn.spawn(async move {
             debug!(

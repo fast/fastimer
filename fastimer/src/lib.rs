@@ -73,7 +73,7 @@ pub fn make_instant_from_now(dur: Duration) -> Instant {
 }
 
 /// A trait for creating delay futures.
-pub trait MakeDelay: Send + 'static {
+pub trait MakeDelay {
     /// The future returned by the `delay`/`delay_until` method.
     type Delay: Future<Output = ()> + Send;
 
@@ -91,6 +91,41 @@ pub trait Spawn {
     /// Spawn a future and return a cancellable future.
     fn spawn<F: Future<Output = ()> + Send + 'static>(&self, future: F);
 }
+
+/// Provides extension methods for [`MakeDelay`] implementors.
+pub trait MakeDelayExt: MakeDelay {
+    /// Requires a `Future` to complete before the specified duration has elapsed.
+    fn timeout<F: Future>(&self, duration: Duration, fut: F) -> Timeout<F, Self::Delay> {
+        timeout(duration, fut, self)
+    }
+
+    /// Requires a `Future` to complete before the specified instant in time.
+    fn timeout_at<F: Future>(&self, deadline: Instant, fut: F) -> Timeout<F, Self::Delay> {
+        timeout_at(deadline, fut, self)
+    }
+
+    /// Creates new [`Interval`] that yields with interval of `period`.
+    ///
+    /// See [`interval`] for more details.
+    fn interval(self, period: Duration) -> Interval<Self>
+    where
+        Self: Sized,
+    {
+        interval(period, self)
+    }
+
+    /// Creates new [`Interval`] that yields with interval of `period` and starts at `at`.
+    ///
+    /// See [`interval_at`] for more details.
+    fn interval_at(self, at: Instant, period: Duration) -> Interval<Self>
+    where
+        Self: Sized,
+    {
+        interval_at(at, period, self)
+    }
+}
+
+impl<T: MakeDelay> MakeDelayExt for T {}
 
 /// Errors returned by [`Timeout`].
 ///
@@ -154,11 +189,11 @@ where
 pub fn timeout<F, D>(
     duration: Duration,
     future: F,
-    make_delay: D,
+    make_delay: &D,
 ) -> Timeout<F::IntoFuture, D::Delay>
 where
     F: IntoFuture,
-    D: MakeDelay,
+    D: MakeDelay + ?Sized,
 {
     let delay = make_delay.delay(duration);
     Timeout {
@@ -171,11 +206,11 @@ where
 pub fn timeout_at<F, D>(
     deadline: Instant,
     future: F,
-    make_delay: D,
+    make_delay: &D,
 ) -> Timeout<F::IntoFuture, D::Delay>
 where
     F: IntoFuture,
-    D: MakeDelay,
+    D: MakeDelay + ?Sized,
 {
     let delay = make_delay.delay_util(deadline);
     Timeout {

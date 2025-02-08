@@ -50,7 +50,7 @@ pub trait SimpleActionExt: SimpleAction {
     ) where
         Self: Sized,
         S: Spawn,
-        D: MakeDelay,
+        D: MakeDelay + Send + 'static,
     {
         spawn.spawn(async move {
             debug!(
@@ -95,7 +95,7 @@ pub trait SimpleActionExt: SimpleAction {
     ) where
         Self: Sized,
         S: Spawn,
-        D: MakeDelay,
+        D: MakeDelay + Send + 'static,
     {
         assert!(period > Duration::new(0, 0), "`period` must be non-zero.");
 

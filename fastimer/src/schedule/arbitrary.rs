@@ -45,7 +45,7 @@ pub trait ArbitraryDelayActionExt: ArbitraryDelayAction {
     ) where
         Self: Sized,
         S: Spawn,
-        D: MakeDelay,
+        D: MakeDelay + Send + 'static,
     {
         spawn.spawn(async move {
             debug!(
@@ -59,8 +59,6 @@ pub trait ArbitraryDelayActionExt: ArbitraryDelayAction {
                     Some(make_delay) => make_delay,
                     None => return,
                 };
-
-            let make_delay = make_delay;
 
             loop {
                 debug!("executing scheduled task {}", self.name());
