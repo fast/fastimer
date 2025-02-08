@@ -29,13 +29,9 @@ version.workspace = true
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
-[features]
-spawn = ["dep:fastimer", "dep:tokio", "tokio/rt"]
-time = ["dep:fastimer", "dep:tokio", "tokio/time"]
-
 [dependencies]
-fastimer = { workspace = true, optional = true }
-tokio = { workspace = true, optional = true }
+fastimer = { workspace = true }
+tokio = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }

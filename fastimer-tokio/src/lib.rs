@@ -17,10 +17,8 @@
 
 //! [`tokio`] runtime support for [`fastimer`]'s traits.
 
-#[cfg(feature = "time")]
 pub use delay::*;
 
-#[cfg(feature = "time")]
 mod delay {
     use std::time::Duration;
     use std::time::Instant;
@@ -44,10 +42,8 @@ mod delay {
     }
 }
 
-#[cfg(feature = "spawn")]
 pub use spawn::*;
 
-#[cfg(feature = "spawn")]
 mod spawn {
     use std::future::Future;
 
