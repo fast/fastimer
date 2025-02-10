@@ -190,7 +190,7 @@ dependencies = [
 
 [[package]]
 name = "fastimer"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "log",
  "pin-project",
@@ -199,7 +199,7 @@ dependencies = [
 
 [[package]]
 name = "fastimer-driver"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "atomic-waker",
  "crossbeam-queue",
@@ -210,7 +210,7 @@ dependencies = [
 
 [[package]]
 name = "fastimer-tokio"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "fastimer",
  "tokio",
