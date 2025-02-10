@@ -19,7 +19,7 @@ use fastimer::make_instant_from_now;
 use fastimer_driver::binary_heap_driver;
 
 fn assert_duration_eq(actual: Duration, expected: Duration) {
-    if expected.abs_diff(expected) > Duration::from_millis(5) {
+    if expected.abs_diff(actual) > Duration::from_millis(5) {
         panic!("expected: {:?}, actual: {:?}", expected, actual);
     }
 }
