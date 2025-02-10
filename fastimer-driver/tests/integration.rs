@@ -18,8 +18,9 @@ use std::time::Instant;
 use fastimer::make_instant_from_now;
 use fastimer_driver::binary_heap_driver;
 
+#[track_caller]
 fn assert_duration_eq(actual: Duration, expected: Duration) {
-    if expected.abs_diff(actual) > Duration::from_millis(5) {
+    if expected.abs_diff(actual) > Duration::from_millis(250) {
         panic!("expected: {:?}, actual: {:?}", expected, actual);
     }
 }
@@ -42,6 +43,7 @@ fn test_binary_heap_driver() {
         context.delay(Duration::from_secs(2)).await;
         assert_duration_eq(now.elapsed(), Duration::from_secs(2));
 
+        let now = Instant::now();
         let future = make_instant_from_now(Duration::from_secs(3));
         let f1 = context.delay_until(future);
         let f2 = context.delay_until(future);

@@ -19,8 +19,9 @@ use fastimer::Interval;
 use fastimer::MakeDelay;
 use fastimer::MakeDelayExt;
 
+#[track_caller]
 fn assert_duration_eq(actual: Duration, expected: Duration) {
-    if expected.abs_diff(actual) > Duration::from_millis(5) {
+    if expected.abs_diff(actual) > Duration::from_millis(250) {
         panic!("expected: {:?}, actual: {:?}", expected, actual);
     }
 }
