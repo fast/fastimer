@@ -270,6 +270,7 @@ impl<D: MakeDelay> Interval<D> {
         self.delay = Box::pin(self.make_delay.delay_util(next));
 
         // Return the time when we were scheduled to tick
+        self.deadline = next;
         Poll::Ready(timeout)
     }
 }
