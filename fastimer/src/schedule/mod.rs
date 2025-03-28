@@ -26,7 +26,7 @@ pub use notify::*;
 mod simple;
 pub use simple::*;
 
-use crate::debug;
+use crate::info;
 use crate::MakeDelay;
 
 mod select;
@@ -86,7 +86,7 @@ where
     let is_shutdown = action.is_shutdown();
     match select(is_shutdown, delay).await {
         Either::Left(()) => {
-            debug!("scheduled task {} is stopped", action.name());
+            info!("scheduled task {} is stopped", action.name());
             action.teardown();
             true
         }

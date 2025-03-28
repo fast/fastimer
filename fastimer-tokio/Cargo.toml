@@ -16,11 +16,11 @@
 name = "fastimer-tokio"
 
 description = "This crates provides tokio runtime integration for fastimer."
+readme = "README.md"
 
 edition.workspace = true
 homepage.workspace = true
 license.workspace = true
-readme.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 version.workspace = true

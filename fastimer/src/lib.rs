@@ -43,8 +43,6 @@ use std::future::Future;
 use std::time::Duration;
 use std::time::Instant;
 
-mod macros;
-
 mod interval;
 pub use interval::*;
 
@@ -73,6 +71,8 @@ pub fn make_instant_from_now(dur: Duration) -> Instant {
 }
 
 /// A trait for creating delay futures.
+///
+/// See [`MakeDelayExt`] for extension methods.
 pub trait MakeDelay {
     /// The future returned by the `delay`/`delay_until` method.
     type Delay: Future<Output = ()> + Send;
@@ -126,3 +126,41 @@ pub trait MakeDelayExt: MakeDelay {
 }
 
 impl<T: MakeDelay> MakeDelayExt for T {}
+
+pub(crate) use self::macros::debug;
+pub(crate) use self::macros::info;
+
+#[cfg(feature = "logging")]
+mod macros {
+    pub(crate) use debug;
+    pub(crate) use info;
+
+    macro_rules! debug {
+        (target: $target:expr, $($arg:tt)+) => (log::debug!(target: $target, $($arg)+));
+        ($($arg:tt)+) => (log::debug!($($arg)+));
+    }
+
+    macro_rules! info {
+        (target: $target:expr, $($arg:tt)+) => (log::info!(target: $target, $($arg)+));
+        ($($arg:tt)+) => (log::info!($($arg)+));
+    }
+}
+
+#[cfg(not(feature = "logging"))]
+#[macro_use]
+mod macros {
+    pub(crate) use debug;
+    pub(crate) use info;
+
+    macro_rules! info {
+        (target: $target:expr, $($arg:tt)+) => {};
+        ($($arg:tt)+) => {};
+    }
+
+    macro_rules! debug {
+        (target: $target:expr, $($arg:tt)+) => {};
+        ($($arg:tt)+) => {};
+    }
+}
+
+
