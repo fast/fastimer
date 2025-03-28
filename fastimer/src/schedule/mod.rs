@@ -77,19 +77,28 @@ where
     }
 }
 
+/// Returns `None` if the action is shutdown.
+async fn execute_or_shutdown<A, D, O>(action: &mut A, exe: D) -> Option<O>
+where
+    A: BaseAction,
+    D: Future<Output = O>,
+{
+    let is_shutdown = action.is_shutdown();
+    match select(is_shutdown, exe).await {
+        Either::Left(()) => {
+            info!("scheduled task {} is stopped", action.name());
+            action.teardown();
+            None
+        }
+        Either::Right(o) => Some(o),
+    }
+}
+
 /// Returns `true` if the action is shutdown.
 async fn delay_or_shutdown<A, D>(action: &mut A, delay: D) -> bool
 where
     A: BaseAction,
     D: Future<Output = ()>,
 {
-    let is_shutdown = action.is_shutdown();
-    match select(is_shutdown, delay).await {
-        Either::Left(()) => {
-            info!("scheduled task {} is stopped", action.name());
-            action.teardown();
-            true
-        }
-        Either::Right(()) => false,
-    }
+    execute_or_shutdown(action, delay).await.is_none()
 }
