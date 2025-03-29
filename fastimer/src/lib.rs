@@ -132,9 +132,6 @@ pub(crate) use self::macros::info;
 
 #[cfg(feature = "logging")]
 mod macros {
-    pub(crate) use debug;
-    pub(crate) use info;
-
     macro_rules! debug {
         (target: $target:expr, $($arg:tt)+) => (log::debug!(target: $target, $($arg)+));
         ($($arg:tt)+) => (log::debug!($($arg)+));
@@ -144,14 +141,14 @@ mod macros {
         (target: $target:expr, $($arg:tt)+) => (log::info!(target: $target, $($arg)+));
         ($($arg:tt)+) => (log::info!($($arg)+));
     }
+
+    pub(crate) use debug;
+    pub(crate) use info;
 }
 
 #[cfg(not(feature = "logging"))]
 #[macro_use]
 mod macros {
-    pub(crate) use debug;
-    pub(crate) use info;
-
     macro_rules! info {
         (target: $target:expr, $($arg:tt)+) => {};
         ($($arg:tt)+) => {};
@@ -161,6 +158,7 @@ mod macros {
         (target: $target:expr, $($arg:tt)+) => {};
         ($($arg:tt)+) => {};
     }
+
+    pub(crate) use debug;
+    pub(crate) use info;
 }
-
-
