@@ -16,6 +16,7 @@ use std::future::Future;
 use std::time::Duration;
 
 use crate::debug;
+use crate::info;
 use crate::schedule::initial_delay_or_shutdown;
 use crate::schedule::BaseAction;
 use crate::MakeDelay;
@@ -57,7 +58,7 @@ pub trait NotifyActionExt: NotifyAction {
         D: MakeDelay + Send + 'static,
     {
         spawn.spawn(async move {
-            debug!(
+            info!(
                 "start scheduled task {} with initial delay {:?}",
                 self.name(),
                 initial_delay
@@ -73,7 +74,7 @@ pub trait NotifyActionExt: NotifyAction {
                 self.run().await;
 
                 if self.notified().await {
-                    debug!("scheduled task {} is stopped", self.name());
+                    info!("scheduled task {} is stopped", self.name());
                     self.teardown();
                     return;
                 }

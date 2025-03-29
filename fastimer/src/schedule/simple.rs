@@ -18,6 +18,7 @@ use std::time::Instant;
 
 use crate::debug;
 use crate::far_future;
+use crate::info;
 use crate::make_instant_from;
 use crate::make_instant_from_now;
 use crate::schedule::delay_or_shutdown;
@@ -53,7 +54,7 @@ pub trait SimpleActionExt: SimpleAction {
         D: MakeDelay + Send + 'static,
     {
         spawn.spawn(async move {
-            debug!(
+            info!(
                 "start scheduled task {} with fixed delay {:?} and initial delay {:?}",
                 self.name(),
                 delay,
@@ -129,7 +130,7 @@ pub trait SimpleActionExt: SimpleAction {
         }
 
         spawn.spawn(async move {
-            debug!(
+            info!(
                 "start scheduled task {} at fixed rate {:?} with initial delay {:?}",
                 self.name(),
                 period,

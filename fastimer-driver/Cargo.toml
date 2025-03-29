@@ -16,11 +16,11 @@
 name = "fastimer-driver"
 
 description = "This crate implements a timer driver that can work with any async runtime scheduler."
+readme = "README.md"
 
 edition.workspace = true
 homepage.workspace = true
 license.workspace = true
-readme.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 version.workspace = true

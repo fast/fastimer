@@ -17,6 +17,7 @@ use std::time::Duration;
 use std::time::Instant;
 
 use crate::debug;
+use crate::info;
 use crate::schedule::delay_or_shutdown;
 use crate::schedule::initial_delay_or_shutdown;
 use crate::schedule::BaseAction;
@@ -48,7 +49,7 @@ pub trait ArbitraryDelayActionExt: ArbitraryDelayAction {
         D: MakeDelay + Send + 'static,
     {
         spawn.spawn(async move {
-            debug!(
+            info!(
                 "start scheduled task {} with initial delay {:?}",
                 self.name(),
                 initial_delay
