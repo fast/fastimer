@@ -12,28 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::future::Future;
 use std::time::Duration;
 use std::time::Instant;
 
+use crate::MakeDelay;
+use crate::Spawn;
 use crate::debug;
 use crate::far_future;
 use crate::info;
 use crate::make_instant_from;
 use crate::make_instant_from_now;
-use crate::schedule::delay_or_shutdown;
-use crate::schedule::initial_delay_or_shutdown;
 use crate::schedule::BaseAction;
-use crate::MakeDelay;
-use crate::Spawn;
+use crate::schedule::delay_or_shutdown;
+use crate::schedule::execute_or_shutdown;
+use crate::schedule::initial_delay_or_shutdown;
 
 /// Repeatable action.
 ///
 /// See [`SimpleActionExt`] for scheduling methods.
-pub trait SimpleAction: BaseAction {
-    /// Run the action.
-    fn run(&mut self) -> impl Future<Output = ()> + Send;
-}
+pub trait SimpleAction: BaseAction {}
 
 /// An extension trait for [`SimpleAction`] that provides scheduling methods.
 pub trait SimpleActionExt: SimpleAction {
@@ -69,7 +66,9 @@ pub trait SimpleActionExt: SimpleAction {
 
             loop {
                 debug!("executing scheduled task {}", self.name());
-                self.run().await;
+                if execute_or_shutdown(&mut self).await {
+                    return;
+                }
 
                 if delay_or_shutdown(&mut self, make_delay.delay(delay)).await {
                     return;
@@ -149,7 +148,9 @@ pub trait SimpleActionExt: SimpleAction {
 
             loop {
                 debug!("executing scheduled task {}", self.name());
-                self.run().await;
+                if execute_or_shutdown(&mut self).await {
+                    return;
+                }
 
                 next = calculate_next_on_miss(next, period);
                 if delay_or_shutdown(&mut self, make_delay.delay_util(next)).await {

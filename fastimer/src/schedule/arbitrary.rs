@@ -12,26 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::future::Future;
 use std::time::Duration;
 use std::time::Instant;
 
-use crate::debug;
-use crate::info;
-use crate::schedule::delay_or_shutdown;
-use crate::schedule::initial_delay_or_shutdown;
-use crate::schedule::BaseAction;
 use crate::MakeDelay;
 use crate::Spawn;
+use crate::debug;
+use crate::info;
+use crate::schedule::BaseAction;
+use crate::schedule::delay_or_shutdown;
+use crate::schedule::execute_or_shutdown;
+use crate::schedule::initial_delay_or_shutdown;
 
 /// Repeatable action that can be scheduled with arbitrary delay.
 ///
 /// See [`ArbitraryDelayActionExt`] for scheduling methods.
 pub trait ArbitraryDelayAction: BaseAction {
-    /// Run the action.
-    ///
     /// Return an Instant that indicates when to schedule the next run.
-    fn run(&mut self) -> impl Future<Output = Instant> + Send;
+    fn next_run_at(&self) -> Instant;
 }
 
 /// An extension trait for [`ArbitraryDelayAction`] that provides scheduling methods.
@@ -63,8 +61,12 @@ pub trait ArbitraryDelayActionExt: ArbitraryDelayAction {
 
             loop {
                 debug!("executing scheduled task {}", self.name());
-                let next = self.run().await;
 
+                if execute_or_shutdown(&mut self).await {
+                    return;
+                }
+
+                let next = self.next_run_at();
                 if delay_or_shutdown(&mut self, make_delay.delay_util(next)).await {
                     return;
                 }

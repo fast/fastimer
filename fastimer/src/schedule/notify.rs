@@ -15,20 +15,18 @@
 use std::future::Future;
 use std::time::Duration;
 
-use crate::debug;
-use crate::info;
-use crate::schedule::initial_delay_or_shutdown;
-use crate::schedule::BaseAction;
 use crate::MakeDelay;
 use crate::Spawn;
+use crate::debug;
+use crate::info;
+use crate::schedule::BaseAction;
+use crate::schedule::execute_or_shutdown;
+use crate::schedule::initial_delay_or_shutdown;
 
 /// Repeatable action that can be scheduled by notifications.
 ///
 /// See [`NotifyActionExt`] for scheduling methods.
 pub trait NotifyAction: BaseAction {
-    /// Run the action.
-    fn run(&mut self) -> impl Future<Output = ()> + Send;
-
     /// Return a future that resolves when the action is notified.
     ///
     /// The future should return `true` if the action should be stopped, and `false` if the action
@@ -71,7 +69,10 @@ pub trait NotifyActionExt: NotifyAction {
 
             loop {
                 debug!("executing scheduled task {}", self.name());
-                self.run().await;
+
+                if execute_or_shutdown(&mut self).await {
+                    return;
+                }
 
                 if self.notified().await {
                     info!("scheduled task {} is stopped", self.name());

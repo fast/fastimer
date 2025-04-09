@@ -26,13 +26,13 @@ pub use notify::*;
 mod simple;
 pub use simple::*;
 
-use crate::info;
 use crate::MakeDelay;
+use crate::info;
 
 mod select;
 
-use crate::schedule::select::select;
 use crate::schedule::select::Either;
+use crate::schedule::select::select;
 
 /// Base trait for shutdown-able scheduled actions.
 pub trait BaseAction: Send + 'static {
@@ -43,9 +43,12 @@ pub trait BaseAction: Send + 'static {
     ///
     /// By default, this function returns a future that never resolves, i.e., the action will never
     /// be shutdown.
-    fn is_shutdown(&self) -> impl Future<Output = ()> + Send {
+    fn is_shutdown(&self) -> impl Future<Output = ()> + Send + 'static {
         std::future::pending()
     }
+
+    /// Run the action.
+    fn run(&mut self) -> impl Future<Output = ()> + Send;
 
     /// A teardown hook that is called when the action is shutdown.
     fn teardown(&mut self) {}
@@ -85,6 +88,23 @@ where
 {
     let is_shutdown = action.is_shutdown();
     match select(is_shutdown, delay).await {
+        Either::Left(()) => {
+            info!("scheduled task {} is stopped", action.name());
+            action.teardown();
+            true
+        }
+        Either::Right(()) => false,
+    }
+}
+
+/// Returns `true` if the action is shutdown.
+async fn execute_or_shutdown<A>(action: &mut A) -> bool
+where
+    A: BaseAction,
+{
+    let is_shutdown = action.is_shutdown();
+    let execute = action.run();
+    match select(is_shutdown, execute).await {
         Either::Left(()) => {
             info!("scheduled task {} is stopped", action.name());
             action.teardown();

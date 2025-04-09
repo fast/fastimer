@@ -16,6 +16,7 @@
 name = "fastimer"
 
 description = "This crates implements runtime-agnostic timer traits and utilities."
+version = "0.8.0"
 
 edition.workspace = true
 homepage.workspace = true
@@ -23,7 +24,6 @@ license.workspace = true
 readme.workspace = true
 repository.workspace = true
 rust-version.workspace = true
-version.workspace = true
 
 [package.metadata.docs.rs]
 all-features = true
