@@ -62,24 +62,25 @@ pub trait NotifyActionExt: NotifyAction {
                 initial_delay
             );
 
-            match initial_delay_or_shutdown(&mut self, make_delay, initial_delay).await {
-                Some(..) => {}
-                None => return,
-            };
-
-            loop {
-                debug!("executing scheduled task {}", self.name());
-
-                if execute_or_shutdown(&mut self).await {
-                    return;
+            'schedule: {
+                if initial_delay_or_shutdown(&mut self, make_delay, initial_delay).await {
+                    break 'schedule;
                 }
 
-                if self.notified().await {
-                    info!("scheduled task {} is stopped", self.name());
-                    self.teardown();
-                    return;
+                loop {
+                    debug!("executing scheduled task {}", self.name());
+
+                    if execute_or_shutdown(&mut self).await {
+                        break;
+                    }
+
+                    if self.notified().await {
+                        break;
+                    }
                 }
             }
+
+            info!("scheduled task {} is shutdown", self.name());
         });
     }
 }

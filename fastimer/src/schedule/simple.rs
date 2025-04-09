@@ -58,22 +58,24 @@ pub trait SimpleActionExt: SimpleAction {
                 initial_delay
             );
 
-            let make_delay =
-                match initial_delay_or_shutdown(&mut self, make_delay, initial_delay).await {
-                    Some(make_delay) => make_delay,
-                    None => return,
-                };
-
-            loop {
-                debug!("executing scheduled task {}", self.name());
-                if execute_or_shutdown(&mut self).await {
-                    return;
+            'schedule: {
+                if initial_delay_or_shutdown(&mut self, &make_delay, initial_delay).await {
+                    break 'schedule;
                 }
 
-                if delay_or_shutdown(&mut self, make_delay.delay(delay)).await {
-                    return;
+                loop {
+                    debug!("executing scheduled task {}", self.name());
+                    if execute_or_shutdown(&mut self).await {
+                        break;
+                    }
+
+                    if delay_or_shutdown(&mut self, make_delay.delay(delay)).await {
+                        break;
+                    }
                 }
             }
+
+            info!("scheduled task {} is shutdown", self.name());
         });
     }
 
@@ -136,27 +138,31 @@ pub trait SimpleActionExt: SimpleAction {
                 initial_delay
             );
 
-            let mut next = Instant::now();
-            if let Some(initial_delay) = initial_delay {
-                if initial_delay > Duration::ZERO {
-                    next = make_instant_from_now(initial_delay);
+            'schedule: {
+                let mut next = Instant::now();
+                if let Some(initial_delay) = initial_delay {
+                    if initial_delay > Duration::ZERO {
+                        next = make_instant_from_now(initial_delay);
+                        if delay_or_shutdown(&mut self, make_delay.delay_util(next)).await {
+                            break 'schedule;
+                        }
+                    }
+                }
+
+                loop {
+                    debug!("executing scheduled task {}", self.name());
+                    if execute_or_shutdown(&mut self).await {
+                        break;
+                    }
+
+                    next = calculate_next_on_miss(next, period);
                     if delay_or_shutdown(&mut self, make_delay.delay_util(next)).await {
-                        return;
+                        break;
                     }
                 }
             }
 
-            loop {
-                debug!("executing scheduled task {}", self.name());
-                if execute_or_shutdown(&mut self).await {
-                    return;
-                }
-
-                next = calculate_next_on_miss(next, period);
-                if delay_or_shutdown(&mut self, make_delay.delay_util(next)).await {
-                    return;
-                }
-            }
+            info!("scheduled task {} is shutdown", self.name());
         });
     }
 }

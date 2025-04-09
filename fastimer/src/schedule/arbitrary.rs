@@ -53,24 +53,26 @@ pub trait ArbitraryDelayActionExt: ArbitraryDelayAction {
                 initial_delay
             );
 
-            let make_delay =
-                match initial_delay_or_shutdown(&mut self, make_delay, initial_delay).await {
-                    Some(make_delay) => make_delay,
-                    None => return,
-                };
-
-            loop {
-                debug!("executing scheduled task {}", self.name());
-
-                if execute_or_shutdown(&mut self).await {
-                    return;
+            'schedule: {
+                if initial_delay_or_shutdown(&self, &make_delay, initial_delay).await {
+                    break 'schedule;
                 }
 
-                let next = self.next_run_at();
-                if delay_or_shutdown(&mut self, make_delay.delay_util(next)).await {
-                    return;
+                loop {
+                    debug!("executing scheduled task {}", self.name());
+
+                    if execute_or_shutdown(&mut self).await {
+                        break;
+                    }
+
+                    let next = self.next_run_at();
+                    if delay_or_shutdown(&self, make_delay.delay_util(next)).await {
+                        break;
+                    }
                 }
             }
+
+            info!("scheduled task {} is shutdown", self.name());
         });
     }
 }
