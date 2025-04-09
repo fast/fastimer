@@ -20,8 +20,8 @@ use crate::Spawn;
 use crate::debug;
 use crate::info;
 use crate::schedule::BaseAction;
+use crate::schedule::delay_or_shutdown;
 use crate::schedule::execute_or_shutdown;
-use crate::schedule::initial_delay_or_shutdown;
 
 /// Repeatable action that can be scheduled by notifications.
 ///
@@ -63,8 +63,12 @@ pub trait NotifyActionExt: NotifyAction {
             );
 
             'schedule: {
-                if initial_delay_or_shutdown(&mut self, make_delay, initial_delay).await {
-                    break 'schedule;
+                if let Some(initial_delay) = initial_delay {
+                    if initial_delay > Duration::ZERO
+                        && delay_or_shutdown(&mut self, make_delay.delay(initial_delay)).await
+                    {
+                        break 'schedule;
+                    }
                 }
 
                 loop {

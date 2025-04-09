@@ -22,7 +22,6 @@ use crate::info;
 use crate::schedule::BaseAction;
 use crate::schedule::delay_or_shutdown;
 use crate::schedule::execute_or_shutdown;
-use crate::schedule::initial_delay_or_shutdown;
 
 /// Repeatable action that can be scheduled with arbitrary delay.
 ///
@@ -54,8 +53,12 @@ pub trait ArbitraryDelayActionExt: ArbitraryDelayAction {
             );
 
             'schedule: {
-                if initial_delay_or_shutdown(&self, &make_delay, initial_delay).await {
-                    break 'schedule;
+                if let Some(initial_delay) = initial_delay {
+                    if initial_delay > Duration::ZERO
+                        && delay_or_shutdown(&mut self, make_delay.delay(initial_delay)).await
+                    {
+                        break 'schedule;
+                    }
                 }
 
                 loop {
@@ -66,7 +69,7 @@ pub trait ArbitraryDelayActionExt: ArbitraryDelayAction {
                     }
 
                     let next = self.next_run_at();
-                    if delay_or_shutdown(&self, make_delay.delay_util(next)).await {
+                    if delay_or_shutdown(&mut self, make_delay.delay_util(next)).await {
                         break;
                     }
                 }

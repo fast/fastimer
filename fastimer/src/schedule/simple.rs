@@ -25,7 +25,6 @@ use crate::make_instant_from_now;
 use crate::schedule::BaseAction;
 use crate::schedule::delay_or_shutdown;
 use crate::schedule::execute_or_shutdown;
-use crate::schedule::initial_delay_or_shutdown;
 
 /// Repeatable action.
 ///
@@ -59,8 +58,12 @@ pub trait SimpleActionExt: SimpleAction {
             );
 
             'schedule: {
-                if initial_delay_or_shutdown(&mut self, &make_delay, initial_delay).await {
-                    break 'schedule;
+                if let Some(initial_delay) = initial_delay {
+                    if initial_delay > Duration::ZERO
+                        && delay_or_shutdown(&mut self, make_delay.delay(initial_delay)).await
+                    {
+                        break 'schedule;
+                    }
                 }
 
                 loop {

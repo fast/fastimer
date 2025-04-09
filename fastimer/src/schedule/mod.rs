@@ -15,9 +15,6 @@
 //! Repeatable and cancellable actions.
 
 use std::future::Future;
-use std::time::Duration;
-
-use crate::MakeDelay;
 
 use self::select::Either;
 use self::select::select;
@@ -51,28 +48,7 @@ pub trait BaseAction: Send + 'static {
 }
 
 /// Returns `true` if the action is shutdown.
-async fn initial_delay_or_shutdown<A, D>(
-    action: &A,
-    make_delay: &D,
-    initial_delay: Option<Duration>,
-) -> bool
-where
-    A: BaseAction,
-    D: MakeDelay,
-{
-    let Some(initial_delay) = initial_delay else {
-        return false;
-    };
-
-    if initial_delay.is_zero() {
-        return false;
-    }
-
-    delay_or_shutdown(action, make_delay.delay(initial_delay)).await
-}
-
-/// Returns `true` if the action is shutdown.
-async fn delay_or_shutdown<A, D>(action: &A, delay: D) -> bool
+async fn delay_or_shutdown<A, D>(action: &mut A, delay: D) -> bool
 where
     A: BaseAction,
     D: Future<Output = ()>,
