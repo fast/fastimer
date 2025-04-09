@@ -14,9 +14,9 @@
 
 use std::collections::BinaryHeap;
 use std::ops::ControlFlow;
+use std::sync::Arc;
 use std::sync::atomic;
 use std::sync::atomic::AtomicBool;
-use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 

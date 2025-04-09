@@ -12,28 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::future::Future;
 use std::time::Duration;
 use std::time::Instant;
 
+use crate::MakeDelay;
+use crate::Spawn;
 use crate::debug;
 use crate::far_future;
 use crate::info;
 use crate::make_instant_from;
 use crate::make_instant_from_now;
-use crate::schedule::delay_or_shutdown;
-use crate::schedule::initial_delay_or_shutdown;
 use crate::schedule::BaseAction;
-use crate::MakeDelay;
-use crate::Spawn;
+use crate::schedule::delay_or_shutdown;
+use crate::schedule::execute_or_shutdown;
 
 /// Repeatable action.
 ///
 /// See [`SimpleActionExt`] for scheduling methods.
-pub trait SimpleAction: BaseAction {
-    /// Run the action.
-    fn run(&mut self) -> impl Future<Output = ()> + Send;
-}
+pub trait SimpleAction: BaseAction {}
 
 /// An extension trait for [`SimpleAction`] that provides scheduling methods.
 pub trait SimpleActionExt: SimpleAction {
@@ -61,20 +57,28 @@ pub trait SimpleActionExt: SimpleAction {
                 initial_delay
             );
 
-            let make_delay =
-                match initial_delay_or_shutdown(&mut self, make_delay, initial_delay).await {
-                    Some(make_delay) => make_delay,
-                    None => return,
-                };
+            'schedule: {
+                if let Some(initial_delay) = initial_delay {
+                    if initial_delay > Duration::ZERO
+                        && delay_or_shutdown(&mut self, make_delay.delay(initial_delay)).await
+                    {
+                        break 'schedule;
+                    }
+                }
 
-            loop {
-                debug!("executing scheduled task {}", self.name());
-                self.run().await;
+                loop {
+                    debug!("executing scheduled task {}", self.name());
+                    if execute_or_shutdown(&mut self).await {
+                        break;
+                    }
 
-                if delay_or_shutdown(&mut self, make_delay.delay(delay)).await {
-                    return;
+                    if delay_or_shutdown(&mut self, make_delay.delay(delay)).await {
+                        break;
+                    }
                 }
             }
+
+            info!("scheduled task {} is shutdown", self.name());
         });
     }
 
@@ -137,25 +141,31 @@ pub trait SimpleActionExt: SimpleAction {
                 initial_delay
             );
 
-            let mut next = Instant::now();
-            if let Some(initial_delay) = initial_delay {
-                if initial_delay > Duration::ZERO {
-                    next = make_instant_from_now(initial_delay);
+            'schedule: {
+                let mut next = Instant::now();
+                if let Some(initial_delay) = initial_delay {
+                    if initial_delay > Duration::ZERO {
+                        next = make_instant_from_now(initial_delay);
+                        if delay_or_shutdown(&mut self, make_delay.delay_util(next)).await {
+                            break 'schedule;
+                        }
+                    }
+                }
+
+                loop {
+                    debug!("executing scheduled task {}", self.name());
+                    if execute_or_shutdown(&mut self).await {
+                        break;
+                    }
+
+                    next = calculate_next_on_miss(next, period);
                     if delay_or_shutdown(&mut self, make_delay.delay_util(next)).await {
-                        return;
+                        break;
                     }
                 }
             }
 
-            loop {
-                debug!("executing scheduled task {}", self.name());
-                self.run().await;
-
-                next = calculate_next_on_miss(next, period);
-                if delay_or_shutdown(&mut self, make_delay.delay_util(next)).await {
-                    return;
-                }
-            }
+            info!("scheduled task {} is shutdown", self.name());
         });
     }
 }
