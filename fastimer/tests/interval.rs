@@ -19,6 +19,8 @@ use fastimer::Interval;
 use fastimer::MakeDelay;
 use fastimer::MakeDelayExt;
 
+mod common;
+
 #[track_caller]
 fn assert_duration_eq(actual: Duration, expected: Duration) {
     if expected.abs_diff(actual) > Duration::from_millis(250) {
@@ -33,24 +35,9 @@ async fn assert_tick_about<D: MakeDelay>(interval: &mut Interval<D>, expected: D
     assert_duration_eq(elapsed, expected);
 }
 
-#[derive(Clone, Copy, Debug, Default)]
-pub struct MakeTokioDelay;
-
-impl MakeDelay for MakeTokioDelay {
-    type Delay = tokio::time::Sleep;
-
-    fn delay_util(&self, at: Instant) -> Self::Delay {
-        tokio::time::sleep_until(tokio::time::Instant::from_std(at))
-    }
-
-    fn delay(&self, duration: Duration) -> Self::Delay {
-        tokio::time::sleep(duration)
-    }
-}
-
 #[tokio::test]
 async fn test_interval_ticks() {
-    let mut interval = MakeTokioDelay.interval(Duration::from_secs(1));
+    let mut interval = common::MakeTokioDelay.interval(Duration::from_secs(1));
     assert_tick_about(&mut interval, Duration::ZERO).await;
 
     for _ in 0..5 {
@@ -62,7 +49,7 @@ async fn test_interval_ticks() {
 async fn test_interval_at_ticks() {
     let first_tick = Instant::now() + Duration::from_secs(2);
 
-    let mut interval = MakeTokioDelay.interval_at(first_tick, Duration::from_secs(1));
+    let mut interval = common::MakeTokioDelay.interval_at(first_tick, Duration::from_secs(1));
     assert_tick_about(&mut interval, Duration::from_secs(2)).await;
 
     for _ in 0..5 {

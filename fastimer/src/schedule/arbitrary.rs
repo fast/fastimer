@@ -13,21 +13,23 @@
 // limitations under the License.
 
 use std::future::Future;
+use std::ops::ControlFlow;
 use std::time::Duration;
 use std::time::Instant;
 
-use crate::debug;
-use crate::info;
-use crate::schedule::delay_or_shutdown;
-use crate::schedule::initial_delay_or_shutdown;
-use crate::schedule::BaseAction;
 use crate::MakeDelay;
 use crate::Spawn;
+use crate::debug;
+use crate::info;
+use crate::schedule::execute_or_shutdown;
 
 /// Repeatable action that can be scheduled with arbitrary delay.
 ///
 /// See [`ArbitraryDelayActionExt`] for scheduling methods.
-pub trait ArbitraryDelayAction: BaseAction {
+pub trait ArbitraryDelayAction: Send + 'static {
+    /// The name of the trait.
+    fn name(&self) -> &str;
+
     /// Run the action.
     ///
     /// Return an Instant that indicates when to schedule the next run.
@@ -38,13 +40,16 @@ pub trait ArbitraryDelayAction: BaseAction {
 pub trait ArbitraryDelayActionExt: ArbitraryDelayAction {
     /// Creates and executes a repeatable action that becomes enabled first after the given
     /// `initial_delay`, and subsequently based on the result of the action.
-    fn schedule_with_arbitrary_delay<S, D>(
+    fn schedule_with_arbitrary_delay<F, Fut, S, D>(
         mut self,
+        mut is_shutdown: F,
         spawn: &S,
         make_delay: D,
         initial_delay: Option<Duration>,
     ) where
         Self: Sized,
+        F: FnMut() -> Fut + Send + 'static,
+        Fut: Future<Output = ()> + Send,
         S: Spawn,
         D: MakeDelay + Send + 'static,
     {
@@ -55,20 +60,35 @@ pub trait ArbitraryDelayActionExt: ArbitraryDelayAction {
                 initial_delay
             );
 
-            let make_delay =
-                match initial_delay_or_shutdown(&mut self, make_delay, initial_delay).await {
-                    Some(make_delay) => make_delay,
-                    None => return,
-                };
+            'schedule: {
+                if let Some(initial_delay) = initial_delay {
+                    if initial_delay > Duration::ZERO
+                        && execute_or_shutdown(make_delay.delay(initial_delay), is_shutdown())
+                            .await
+                            .is_break()
+                    {
+                        break 'schedule;
+                    }
+                }
 
-            loop {
-                debug!("executing scheduled task {}", self.name());
-                let next = self.run().await;
+                loop {
+                    debug!("executing scheduled task {}", self.name());
 
-                if delay_or_shutdown(&mut self, make_delay.delay_util(next)).await {
-                    return;
+                    let next = match execute_or_shutdown(self.run(), is_shutdown()).await {
+                        ControlFlow::Continue(next) => next,
+                        ControlFlow::Break(()) => break,
+                    };
+
+                    if execute_or_shutdown(make_delay.delay_util(next), is_shutdown())
+                        .await
+                        .is_break()
+                    {
+                        break;
+                    }
                 }
             }
+
+            info!("scheduled task {} is shutdown", self.name());
         });
     }
 }

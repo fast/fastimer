@@ -15,45 +15,40 @@
 use std::future::Future;
 use std::time::Duration;
 
-use crate::debug;
-use crate::info;
-use crate::schedule::initial_delay_or_shutdown;
-use crate::schedule::BaseAction;
 use crate::MakeDelay;
 use crate::Spawn;
+use crate::debug;
+use crate::info;
+use crate::schedule::execute_or_shutdown;
 
 /// Repeatable action that can be scheduled by notifications.
 ///
 /// See [`NotifyActionExt`] for scheduling methods.
-pub trait NotifyAction: BaseAction {
+pub trait NotifyAction: Send + 'static {
+    /// The name of the trait.
+    fn name(&self) -> &str;
+
     /// Run the action.
     fn run(&mut self) -> impl Future<Output = ()> + Send;
 
-    /// Return a future that resolves when the action is notified.
-    ///
-    /// The future should return `true` if the action should be stopped, and `false` if the action
-    /// should be rescheduled.
-    ///
-    /// By default, this function calls [`is_shutdown`] to exit the action, and thus never
-    /// reschedule the action. Implementations can override this method to provide custom
-    /// notification logic, while still selects on [`is_shutdown`] to allow exiting the action.
-    ///
-    /// [`is_shutdown`]: BaseAction::is_shutdown
-    fn notified(&mut self) -> impl Future<Output = bool> + Send {
-        async move {
-            self.is_shutdown().await;
-            true
-        }
-    }
+    /// Return a future that resolves when the action is notified to run again.
+    fn notified(&mut self) -> impl Future<Output = ()> + Send;
 }
 
 /// An extension trait for [`NotifyAction`] that provides scheduling methods.
 pub trait NotifyActionExt: NotifyAction {
     /// Creates and executes a repeatable action that becomes enabled first after the given
     /// `initial_delay`, and subsequently when it is notified.
-    fn schedule_by_notify<S, D>(mut self, spawn: &S, make_delay: D, initial_delay: Option<Duration>)
-    where
+    fn schedule_by_notify<F, Fut, S, D>(
+        mut self,
+        mut is_shutdown: F,
+        spawn: &S,
+        make_delay: D,
+        initial_delay: Option<Duration>,
+    ) where
         Self: Sized,
+        F: FnMut() -> Fut + Send + 'static,
+        Fut: Future<Output = ()> + Send,
         S: Spawn,
         D: MakeDelay + Send + 'static,
     {
@@ -64,21 +59,37 @@ pub trait NotifyActionExt: NotifyAction {
                 initial_delay
             );
 
-            match initial_delay_or_shutdown(&mut self, make_delay, initial_delay).await {
-                Some(..) => {}
-                None => return,
-            };
+            'schedule: {
+                if let Some(initial_delay) = initial_delay {
+                    if initial_delay > Duration::ZERO
+                        && execute_or_shutdown(make_delay.delay(initial_delay), is_shutdown())
+                            .await
+                            .is_break()
+                    {
+                        break 'schedule;
+                    }
+                }
 
-            loop {
-                debug!("executing scheduled task {}", self.name());
-                self.run().await;
+                loop {
+                    debug!("executing scheduled task {}", self.name());
 
-                if self.notified().await {
-                    info!("scheduled task {} is stopped", self.name());
-                    self.teardown();
-                    return;
+                    if execute_or_shutdown(self.run(), is_shutdown())
+                        .await
+                        .is_break()
+                    {
+                        break;
+                    };
+
+                    if execute_or_shutdown(self.notified(), is_shutdown())
+                        .await
+                        .is_break()
+                    {
+                        break;
+                    }
                 }
             }
+
+            info!("scheduled task {} is shutdown", self.name());
         });
     }
 }
