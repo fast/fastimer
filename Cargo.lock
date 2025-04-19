@@ -224,7 +224,7 @@ dependencies = [
 
 [[package]]
 name = "fastimer"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "log",
  "logforth",
@@ -234,7 +234,7 @@ dependencies = [
 
 [[package]]
 name = "fastimer-driver"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "atomic-waker",
  "crossbeam-queue",
@@ -245,7 +245,7 @@ dependencies = [
 
 [[package]]
 name = "fastimer-tokio"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "fastimer",
  "tokio",
