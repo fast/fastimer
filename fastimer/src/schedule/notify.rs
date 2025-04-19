@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::future::Future;
+use std::pin::pin;
 use std::time::Duration;
 
 use crate::MakeDelay;
@@ -39,16 +40,15 @@ pub trait NotifyAction: Send + 'static {
 pub trait NotifyActionExt: NotifyAction {
     /// Creates and executes a repeatable action that becomes enabled first after the given
     /// `initial_delay`, and subsequently when it is notified.
-    fn schedule_by_notify<F, Fut, S, D>(
+    fn schedule_by_notify<Fut, S, D>(
         mut self,
-        mut is_shutdown: F,
+        is_shutdown: Fut,
         spawn: &S,
         make_delay: D,
         initial_delay: Option<Duration>,
     ) where
         Self: Sized,
-        F: FnMut() -> Fut + Send + 'static,
-        Fut: Future<Output = ()> + Send,
+        Fut: Future<Output = ()> + Send + 'static,
         S: Spawn,
         D: MakeDelay + Send + 'static,
     {
@@ -59,10 +59,11 @@ pub trait NotifyActionExt: NotifyAction {
                 initial_delay
             );
 
+            let mut is_shutdown = pin!(is_shutdown);
             'schedule: {
                 if let Some(initial_delay) = initial_delay {
                     if initial_delay > Duration::ZERO
-                        && execute_or_shutdown(make_delay.delay(initial_delay), is_shutdown())
+                        && execute_or_shutdown(make_delay.delay(initial_delay), &mut is_shutdown)
                             .await
                             .is_break()
                     {
@@ -73,14 +74,14 @@ pub trait NotifyActionExt: NotifyAction {
                 loop {
                     debug!("executing scheduled task {}", self.name());
 
-                    if execute_or_shutdown(self.run(), is_shutdown())
+                    if execute_or_shutdown(self.run(), &mut is_shutdown)
                         .await
                         .is_break()
                     {
                         break;
                     };
 
-                    if execute_or_shutdown(self.notified(), is_shutdown())
+                    if execute_or_shutdown(self.notified(), &mut is_shutdown)
                         .await
                         .is_break()
                     {

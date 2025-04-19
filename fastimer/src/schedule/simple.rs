@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::future::Future;
+use std::pin::pin;
 use std::time::Duration;
 use std::time::Instant;
 
@@ -43,17 +44,16 @@ pub trait SimpleActionExt: SimpleAction {
     /// execution and the commencement of the next.
     ///
     /// This task will terminate if [`SimpleAction::run`] returns `true`.
-    fn schedule_with_fixed_delay<F, Fut, S, D>(
+    fn schedule_with_fixed_delay<Fut, S, D>(
         mut self,
-        mut is_shutdown: F,
+        is_shutdown: Fut,
         spawn: &S,
         make_delay: D,
         initial_delay: Option<Duration>,
         delay: Duration,
     ) where
         Self: Sized,
-        F: FnMut() -> Fut + Send + 'static,
-        Fut: Future<Output = ()> + Send,
+        Fut: Future<Output = ()> + Send + 'static,
         S: Spawn,
         D: MakeDelay + Send + 'static,
     {
@@ -65,10 +65,11 @@ pub trait SimpleActionExt: SimpleAction {
                 initial_delay
             );
 
+            let mut is_shutdown = pin!(is_shutdown);
             'schedule: {
                 if let Some(initial_delay) = initial_delay {
                     if initial_delay > Duration::ZERO
-                        && execute_or_shutdown(make_delay.delay(initial_delay), is_shutdown())
+                        && execute_or_shutdown(make_delay.delay(initial_delay), &mut is_shutdown)
                             .await
                             .is_break()
                     {
@@ -78,14 +79,14 @@ pub trait SimpleActionExt: SimpleAction {
 
                 loop {
                     debug!("executing scheduled task {}", self.name());
-                    if execute_or_shutdown(self.run(), is_shutdown())
+                    if execute_or_shutdown(self.run(), &mut is_shutdown)
                         .await
                         .is_break()
                     {
                         break;
                     };
 
-                    if execute_or_shutdown(make_delay.delay(delay), is_shutdown())
+                    if execute_or_shutdown(make_delay.delay(delay), &mut is_shutdown)
                         .await
                         .is_break()
                     {
@@ -107,17 +108,16 @@ pub trait SimpleActionExt: SimpleAction {
     ///
     /// If any execution of this task takes longer than its period, then subsequent
     /// executions may start late, but will not concurrently execute.
-    fn schedule_at_fixed_rate<F, Fut, S, D>(
+    fn schedule_at_fixed_rate<Fut, S, D>(
         mut self,
-        mut is_shutdown: F,
+        is_shutdown: Fut,
         spawn: &S,
         make_delay: D,
         initial_delay: Option<Duration>,
         period: Duration,
     ) where
         Self: Sized,
-        F: FnMut() -> Fut + Send + 'static,
-        Fut: Future<Output = ()> + Send,
+        Fut: Future<Output = ()> + Send + 'static,
         S: Spawn,
         D: MakeDelay + Send + 'static,
     {
@@ -160,12 +160,13 @@ pub trait SimpleActionExt: SimpleAction {
                 initial_delay
             );
 
+            let mut is_shutdown = pin!(is_shutdown);
             'schedule: {
                 let mut next = Instant::now();
                 if let Some(initial_delay) = initial_delay {
                     if initial_delay > Duration::ZERO {
                         next = make_instant_from_now(initial_delay);
-                        if execute_or_shutdown(make_delay.delay_util(next), is_shutdown())
+                        if execute_or_shutdown(make_delay.delay_util(next), &mut is_shutdown)
                             .await
                             .is_break()
                         {
@@ -176,7 +177,7 @@ pub trait SimpleActionExt: SimpleAction {
 
                 loop {
                     debug!("executing scheduled task {}", self.name());
-                    if execute_or_shutdown(self.run(), is_shutdown())
+                    if execute_or_shutdown(self.run(), &mut is_shutdown)
                         .await
                         .is_break()
                     {
@@ -184,7 +185,7 @@ pub trait SimpleActionExt: SimpleAction {
                     };
 
                     next = calculate_next_on_miss(next, period);
-                    if execute_or_shutdown(make_delay.delay_util(next), is_shutdown())
+                    if execute_or_shutdown(make_delay.delay_util(next), &mut is_shutdown)
                         .await
                         .is_break()
                     {

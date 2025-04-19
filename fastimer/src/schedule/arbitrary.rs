@@ -14,6 +14,7 @@
 
 use std::future::Future;
 use std::ops::ControlFlow;
+use std::pin::pin;
 use std::time::Duration;
 use std::time::Instant;
 
@@ -40,16 +41,15 @@ pub trait ArbitraryDelayAction: Send + 'static {
 pub trait ArbitraryDelayActionExt: ArbitraryDelayAction {
     /// Creates and executes a repeatable action that becomes enabled first after the given
     /// `initial_delay`, and subsequently based on the result of the action.
-    fn schedule_with_arbitrary_delay<F, Fut, S, D>(
+    fn schedule_with_arbitrary_delay<Fut, S, D>(
         mut self,
-        mut is_shutdown: F,
+        is_shutdown: Fut,
         spawn: &S,
         make_delay: D,
         initial_delay: Option<Duration>,
     ) where
         Self: Sized,
-        F: FnMut() -> Fut + Send + 'static,
-        Fut: Future<Output = ()> + Send,
+        Fut: Future<Output = ()> + Send + 'static,
         S: Spawn,
         D: MakeDelay + Send + 'static,
     {
@@ -60,10 +60,11 @@ pub trait ArbitraryDelayActionExt: ArbitraryDelayAction {
                 initial_delay
             );
 
+            let mut is_shutdown = pin!(is_shutdown);
             'schedule: {
                 if let Some(initial_delay) = initial_delay {
                     if initial_delay > Duration::ZERO
-                        && execute_or_shutdown(make_delay.delay(initial_delay), is_shutdown())
+                        && execute_or_shutdown(make_delay.delay(initial_delay), &mut is_shutdown)
                             .await
                             .is_break()
                     {
@@ -74,12 +75,12 @@ pub trait ArbitraryDelayActionExt: ArbitraryDelayAction {
                 loop {
                     debug!("executing scheduled task {}", self.name());
 
-                    let next = match execute_or_shutdown(self.run(), is_shutdown()).await {
+                    let next = match execute_or_shutdown(self.run(), &mut is_shutdown).await {
                         ControlFlow::Continue(next) => next,
                         ControlFlow::Break(()) => break,
                     };
 
-                    if execute_or_shutdown(make_delay.delay_util(next), is_shutdown())
+                    if execute_or_shutdown(make_delay.delay_util(next), &mut is_shutdown)
                         .await
                         .is_break()
                     {
