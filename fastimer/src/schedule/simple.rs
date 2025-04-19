@@ -13,24 +13,26 @@
 // limitations under the License.
 
 use std::future::Future;
+use std::pin::pin;
 use std::time::Duration;
 use std::time::Instant;
 
+use crate::MakeDelay;
+use crate::Spawn;
 use crate::debug;
 use crate::far_future;
 use crate::info;
 use crate::make_instant_from;
 use crate::make_instant_from_now;
-use crate::schedule::delay_or_shutdown;
-use crate::schedule::initial_delay_or_shutdown;
-use crate::schedule::BaseAction;
-use crate::MakeDelay;
-use crate::Spawn;
+use crate::schedule::execute_or_shutdown;
 
 /// Repeatable action.
 ///
 /// See [`SimpleActionExt`] for scheduling methods.
-pub trait SimpleAction: BaseAction {
+pub trait SimpleAction: Send + 'static {
+    /// The name of the trait.
+    fn name(&self) -> &str;
+
     /// Run the action.
     fn run(&mut self) -> impl Future<Output = ()> + Send;
 }
@@ -42,14 +44,16 @@ pub trait SimpleActionExt: SimpleAction {
     /// execution and the commencement of the next.
     ///
     /// This task will terminate if [`SimpleAction::run`] returns `true`.
-    fn schedule_with_fixed_delay<S, D>(
+    fn schedule_with_fixed_delay<Fut, S, D>(
         mut self,
+        is_shutdown: Fut,
         spawn: &S,
         make_delay: D,
         initial_delay: Option<Duration>,
         delay: Duration,
     ) where
         Self: Sized,
+        Fut: Future<Output = ()> + Send + 'static,
         S: Spawn,
         D: MakeDelay + Send + 'static,
     {
@@ -61,20 +65,37 @@ pub trait SimpleActionExt: SimpleAction {
                 initial_delay
             );
 
-            let make_delay =
-                match initial_delay_or_shutdown(&mut self, make_delay, initial_delay).await {
-                    Some(make_delay) => make_delay,
-                    None => return,
-                };
+            let mut is_shutdown = pin!(is_shutdown);
+            'schedule: {
+                if let Some(initial_delay) = initial_delay {
+                    if initial_delay > Duration::ZERO
+                        && execute_or_shutdown(make_delay.delay(initial_delay), &mut is_shutdown)
+                            .await
+                            .is_break()
+                    {
+                        break 'schedule;
+                    }
+                }
 
-            loop {
-                debug!("executing scheduled task {}", self.name());
-                self.run().await;
+                loop {
+                    debug!("executing scheduled task {}", self.name());
+                    if execute_or_shutdown(self.run(), &mut is_shutdown)
+                        .await
+                        .is_break()
+                    {
+                        break;
+                    };
 
-                if delay_or_shutdown(&mut self, make_delay.delay(delay)).await {
-                    return;
+                    if execute_or_shutdown(make_delay.delay(delay), &mut is_shutdown)
+                        .await
+                        .is_break()
+                    {
+                        break;
+                    }
                 }
             }
+
+            info!("scheduled task {} is shutdown", self.name());
         });
     }
 
@@ -87,14 +108,16 @@ pub trait SimpleActionExt: SimpleAction {
     ///
     /// If any execution of this task takes longer than its period, then subsequent
     /// executions may start late, but will not concurrently execute.
-    fn schedule_at_fixed_rate<S, D>(
+    fn schedule_at_fixed_rate<Fut, S, D>(
         mut self,
+        is_shutdown: Fut,
         spawn: &S,
         make_delay: D,
         initial_delay: Option<Duration>,
         period: Duration,
     ) where
         Self: Sized,
+        Fut: Future<Output = ()> + Send + 'static,
         S: Spawn,
         D: MakeDelay + Send + 'static,
     {
@@ -137,25 +160,41 @@ pub trait SimpleActionExt: SimpleAction {
                 initial_delay
             );
 
-            let mut next = Instant::now();
-            if let Some(initial_delay) = initial_delay {
-                if initial_delay > Duration::ZERO {
-                    next = make_instant_from_now(initial_delay);
-                    if delay_or_shutdown(&mut self, make_delay.delay_util(next)).await {
-                        return;
+            let mut is_shutdown = pin!(is_shutdown);
+            'schedule: {
+                let mut next = Instant::now();
+                if let Some(initial_delay) = initial_delay {
+                    if initial_delay > Duration::ZERO {
+                        next = make_instant_from_now(initial_delay);
+                        if execute_or_shutdown(make_delay.delay_util(next), &mut is_shutdown)
+                            .await
+                            .is_break()
+                        {
+                            break 'schedule;
+                        }
+                    }
+                }
+
+                loop {
+                    debug!("executing scheduled task {}", self.name());
+                    if execute_or_shutdown(self.run(), &mut is_shutdown)
+                        .await
+                        .is_break()
+                    {
+                        break;
+                    };
+
+                    next = calculate_next_on_miss(next, period);
+                    if execute_or_shutdown(make_delay.delay_util(next), &mut is_shutdown)
+                        .await
+                        .is_break()
+                    {
+                        break;
                     }
                 }
             }
 
-            loop {
-                debug!("executing scheduled task {}", self.name());
-                self.run().await;
-
-                next = calculate_next_on_miss(next, period);
-                if delay_or_shutdown(&mut self, make_delay.delay_util(next)).await {
-                    return;
-                }
-            }
+            info!("scheduled task {} is shutdown", self.name());
         });
     }
 }

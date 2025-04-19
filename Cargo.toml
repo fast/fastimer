@@ -17,7 +17,7 @@ members = ["fastimer", "fastimer-driver", "fastimer-tokio", "xtask"]
 resolver = "2"
 
 [workspace.package]
-edition = "2021"
+edition = "2024"
 homepage = "https://github.com/fast/fastimer"
 license = "Apache-2.0"
 readme = "README.md"

@@ -17,17 +17,17 @@
 //
 // [1] https://github.com/tokio-rs/tokio/blob/b8ac94ed/tokio/src/time/interval.rs
 
-use std::future::poll_fn;
 use std::future::Future;
+use std::future::poll_fn;
 use std::pin::Pin;
-use std::task::ready;
 use std::task::Context;
 use std::task::Poll;
+use std::task::ready;
 use std::time::Duration;
 use std::time::Instant;
 
-use crate::far_future;
 use crate::MakeDelay;
+use crate::far_future;
 
 /// Creates new [`Interval`] that yields with interval of `period`. The first
 /// tick completes immediately. The default [`MissedTickBehavior`] is
@@ -49,8 +49,8 @@ use crate::MakeDelay;
 /// use std::time::Duration;
 /// use std::time::Instant;
 ///
-/// use fastimer::interval;
 /// use fastimer::MakeDelay;
+/// use fastimer::interval;
 ///
 /// struct TokioDelay;
 /// impl MakeDelay for TokioDelay {
@@ -85,8 +85,8 @@ use crate::MakeDelay;
 /// use std::time::Duration;
 /// use std::time::Instant;
 ///
-/// use fastimer::interval;
 /// use fastimer::MakeDelay;
+/// use fastimer::interval;
 ///
 /// struct TokioDelay;
 /// impl MakeDelay for TokioDelay {
@@ -139,8 +139,8 @@ pub fn interval<D: MakeDelay>(period: Duration, make_delay: D) -> Interval<D> {
 /// use std::time::Duration;
 /// use std::time::Instant;
 ///
-/// use fastimer::interval_at;
 /// use fastimer::MakeDelay;
+/// use fastimer::interval_at;
 ///
 /// struct TokioDelay;
 /// impl MakeDelay for TokioDelay {

@@ -130,7 +130,7 @@ impl<T: MakeDelay> MakeDelayExt for T {}
 pub(crate) use self::macros::debug;
 pub(crate) use self::macros::info;
 
-#[cfg(feature = "logging")]
+#[cfg(any(test, feature = "logging"))]
 mod macros {
     macro_rules! debug {
         (target: $target:expr, $($arg:tt)+) => (log::debug!(target: $target, $($arg)+));
@@ -146,7 +146,7 @@ mod macros {
     pub(crate) use info;
 }
 
-#[cfg(not(feature = "logging"))]
+#[cfg(not(any(test, feature = "logging")))]
 #[macro_use]
 mod macros {
     macro_rules! info {

@@ -20,9 +20,9 @@
 use std::cmp;
 use std::future::Future;
 use std::pin::Pin;
+use std::sync::Arc;
 use std::sync::atomic;
 use std::sync::atomic::AtomicBool;
-use std::sync::Arc;
 use std::task::Context;
 use std::task::Poll;
 use std::time::Duration;
@@ -30,8 +30,8 @@ use std::time::Instant;
 
 use atomic_waker::AtomicWaker;
 use crossbeam_queue::SegQueue;
-use fastimer::make_instant_from_now;
 use fastimer::MakeDelay;
+use fastimer::make_instant_from_now;
 use parking::Unparker;
 
 mod heap;

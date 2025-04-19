@@ -29,10 +29,12 @@ fn assert_duration_eq(actual: Duration, expected: Duration) {
 fn test_binary_heap_driver() {
     let (mut driver, context, shutdown) = binary_heap_driver();
     let (tx, rx) = std::sync::mpsc::channel();
-    std::thread::spawn(move || loop {
-        if driver.turn().is_break() {
-            tx.send(()).unwrap();
-            break;
+    std::thread::spawn(move || {
+        loop {
+            if driver.turn().is_break() {
+                tx.send(()).unwrap();
+                break;
+            }
         }
     });
 
