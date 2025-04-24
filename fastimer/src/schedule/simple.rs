@@ -166,7 +166,7 @@ pub trait SimpleActionExt: SimpleAction {
                 if let Some(initial_delay) = initial_delay {
                     if initial_delay > Duration::ZERO {
                         next = make_instant_from_now(initial_delay);
-                        if execute_or_shutdown(make_delay.delay_util(next), &mut is_shutdown)
+                        if execute_or_shutdown(make_delay.delay_until(next), &mut is_shutdown)
                             .await
                             .is_break()
                         {
@@ -185,7 +185,7 @@ pub trait SimpleActionExt: SimpleAction {
                     };
 
                     next = calculate_next_on_miss(next, period);
-                    if execute_or_shutdown(make_delay.delay_util(next), &mut is_shutdown)
+                    if execute_or_shutdown(make_delay.delay_until(next), &mut is_shutdown)
                         .await
                         .is_break()
                     {

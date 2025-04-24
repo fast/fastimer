@@ -78,11 +78,11 @@ pub trait MakeDelay {
     type Delay: Future<Output = ()> + Send;
 
     /// Create a future that completes at the specified instant.
-    fn delay_util(&self, at: Instant) -> Self::Delay;
+    fn delay_until(&self, at: Instant) -> Self::Delay;
 
     /// Create a future that completes after the specified duration.
     fn delay(&self, duration: Duration) -> Self::Delay {
-        self.delay_util(make_instant_from_now(duration))
+        self.delay_until(make_instant_from_now(duration))
     }
 }
 

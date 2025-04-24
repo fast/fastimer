@@ -149,7 +149,7 @@ impl MakeFastimerDelay {
 impl MakeDelay for MakeFastimerDelay {
     type Delay = Delay;
 
-    fn delay_util(&self, at: Instant) -> Self::Delay {
+    fn delay_until(&self, at: Instant) -> Self::Delay {
         self.0.delay_until(at)
     }
 

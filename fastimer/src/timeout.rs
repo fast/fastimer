@@ -106,7 +106,7 @@ where
     F: IntoFuture,
     D: MakeDelay + ?Sized,
 {
-    let delay = make_delay.delay_util(deadline);
+    let delay = make_delay.delay_until(deadline);
     Timeout {
         value: future.into_future(),
         delay,
