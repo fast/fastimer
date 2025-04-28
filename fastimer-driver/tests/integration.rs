@@ -21,7 +21,7 @@ use fastimer_driver::binary_heap_driver;
 #[track_caller]
 fn assert_duration_eq(actual: Duration, expected: Duration) {
     if expected.abs_diff(actual) > Duration::from_millis(250) {
-        panic!("expected: {:?}, actual: {:?}", expected, actual);
+        panic!("expected: {expected:?}, actual: {actual:?}");
     }
 }
 
