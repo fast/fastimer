@@ -15,7 +15,7 @@
 [package]
 name = "fastimer"
 
-description = "This crates implements runtime-agnostic timer traits and utilities."
+description = "This crate implements runtime-agnostic timer traits and utilities."
 
 edition.workspace = true
 homepage.workspace = true

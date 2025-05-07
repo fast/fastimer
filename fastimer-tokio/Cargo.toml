@@ -15,7 +15,7 @@
 [package]
 name = "fastimer-tokio"
 
-description = "This crates provides tokio runtime integration for fastimer."
+description = "This crate provides tokio runtime integration for fastimer."
 readme = "README.md"
 
 edition.workspace = true

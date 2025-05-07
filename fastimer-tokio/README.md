@@ -12,7 +12,7 @@
 
 ## Overview
 
-This crates provides tokio runtime integration for fastimer.
+This crate provides tokio runtime integration for fastimer.
 
 ## Documentation
 
