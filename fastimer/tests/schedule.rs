@@ -58,7 +58,7 @@ async fn test_simple_action() {
     let shutdown = Instant::now() + Duration::from_secs(10);
 
     MySimpleAction::new("schedule_with_fixed_delay").schedule_with_fixed_delay(
-        MakeTokioDelay.delay_util(shutdown),
+        MakeTokioDelay.delay_until(shutdown),
         &TokioSpawn,
         MakeTokioDelay,
         initial_delay,
@@ -66,7 +66,7 @@ async fn test_simple_action() {
     );
 
     MySimpleAction::new("schedule_at_fixed_rate").schedule_at_fixed_rate(
-        MakeTokioDelay.delay_util(shutdown),
+        MakeTokioDelay.delay_until(shutdown),
         &TokioSpawn,
         MakeTokioDelay,
         initial_delay,
@@ -74,6 +74,6 @@ async fn test_simple_action() {
     );
 
     MakeTokioDelay
-        .delay_util(shutdown + Duration::from_secs(1))
+        .delay_until(shutdown + Duration::from_secs(1))
         .await;
 }
