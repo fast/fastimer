@@ -36,6 +36,8 @@ use parking::Unparker;
 
 mod heap;
 pub use heap::*;
+mod wheel;
+pub use wheel::*;
 
 #[derive(Debug)]
 struct TimeEntry {

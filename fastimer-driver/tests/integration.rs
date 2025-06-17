@@ -17,12 +17,45 @@ use std::time::Instant;
 
 use fastimer::make_instant_from_now;
 use fastimer_driver::binary_heap_driver;
+use fastimer_driver::time_wheel_driver;
 
 #[track_caller]
 fn assert_duration_eq(actual: Duration, expected: Duration) {
     if expected.abs_diff(actual) > Duration::from_millis(250) {
         panic!("expected: {expected:?}, actual: {actual:?}");
     }
+}
+
+#[test]
+fn test_time_wheel_driver() {
+    let (mut driver, context, shutdown) = time_wheel_driver();
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        loop {
+            if driver.turn().is_break() {
+                tx.send(()).unwrap();
+                break;
+            }
+        }
+    });
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    rt.block_on(async move {
+        let now = Instant::now();
+
+        context.delay(Duration::from_secs(2)).await;
+        assert_duration_eq(now.elapsed(), Duration::from_secs(2));
+
+        let now = Instant::now();
+        let future = make_instant_from_now(Duration::from_secs(3));
+        let f1 = context.delay_until(future);
+        let f2 = context.delay_until(future);
+        tokio::join!(f1, f2);
+        assert_duration_eq(now.elapsed(), Duration::from_secs(3));
+
+        shutdown.shutdown();
+    });
+    rx.recv_timeout(Duration::from_secs(1)).unwrap();
 }
 
 #[test]
