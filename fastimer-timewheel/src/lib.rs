@@ -29,7 +29,7 @@ use std::time::Instant;
 
 use atomic_waker::AtomicWaker;
 use crossbeam_queue::SegQueue;
-use fastimer_core::make_instant_from_now;
+use fastimer_core::MakeDelay;
 use parking::Parker;
 use parking::Unparker;
 
@@ -97,14 +97,10 @@ pub struct TimeContext {
     inbounds: Arc<SegQueue<TimeEntry>>,
 }
 
-impl TimeContext {
-    /// Returns a future that completes after the specified duration.
-    pub fn delay(&self, dur: Duration) -> Delay {
-        self.delay_until(make_instant_from_now(dur))
-    }
+impl MakeDelay for TimeContext {
+    type Delay = Delay;
 
-    /// Returns a future that completes at the specified instant.
-    pub fn delay_until(&self, when: Instant) -> Delay {
+    fn delay_until(&self, when: Instant) -> Self::Delay {
         let waker = Arc::new(AtomicWaker::new());
         let delay = Delay {
             when,
@@ -168,7 +164,6 @@ const WHEEL_LEVELS: usize = 4;
 type Slot = VecDeque<TimeEntry>;
 
 #[derive(Debug)]
-
 /// The time wheel structure for hierarchical timer management
 struct TimeWheel {
     /// Multi-level time wheel, each level has 64 slots

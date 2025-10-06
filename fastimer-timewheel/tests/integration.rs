@@ -17,6 +17,7 @@
 use std::time::Duration;
 use std::time::Instant;
 
+use fastimer_core::MakeDelay;
 use fastimer_core::make_instant_from_now;
 use fastimer_timewheel::time_wheel_driver;
 
