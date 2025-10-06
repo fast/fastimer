@@ -29,7 +29,5 @@ rust-version.workspace = true
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
-[dependencies]
-
 [lints]
 workspace = true

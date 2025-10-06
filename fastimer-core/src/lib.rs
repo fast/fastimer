@@ -13,6 +13,17 @@
 // limitations under the License.
 
 //! # Fastimer Core APIs
+//!
+//! Core traits:
+//!
+//! * [`MakeDelay`]: a trait for creating delay futures.
+//! * [`Spawn`]: a trait for spawning futures, this is useful for scheduling tasks.
+//!
+//! Utility functions:
+//!
+//! * [`far_future`]: create a far future instant.
+//! * [`make_instant_from`]: create an instant from the given instant and a duration.
+//! * [`make_instant_from_now`]: create an instant from [`Instant::now`] and a duration.
 
 use std::future::Future;
 use std::time::Duration;
@@ -38,8 +49,6 @@ pub fn make_instant_from_now(dur: Duration) -> Instant {
 }
 
 /// A trait for creating delay futures.
-///
-/// See [`MakeDelayExt`] for extension methods.
 pub trait MakeDelay {
     /// The future returned by the `delay`/`delay_until` method.
     type Delay: Future<Output = ()> + Send;
