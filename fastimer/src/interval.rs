@@ -55,7 +55,7 @@ use crate::far_future;
 /// struct TokioDelay;
 /// impl MakeDelay for TokioDelay {
 ///     type Delay = tokio::time::Sleep;
-///     fn delay_util(&self, until: Instant) -> Self::Delay {
+///     fn delay_until(&self, until: Instant) -> Self::Delay {
 ///         tokio::time::sleep_until(tokio::time::Instant::from_std(until))
 ///     }
 /// }
@@ -91,7 +91,7 @@ use crate::far_future;
 /// struct TokioDelay;
 /// impl MakeDelay for TokioDelay {
 ///     type Delay = tokio::time::Sleep;
-///     fn delay_util(&self, until: Instant) -> Self::Delay {
+///     fn delay_until(&self, until: Instant) -> Self::Delay {
 ///         tokio::time::sleep_until(tokio::time::Instant::from_std(until))
 ///     }
 /// }
@@ -145,7 +145,7 @@ pub fn interval<D: MakeDelay>(period: Duration, make_delay: D) -> Interval<D> {
 /// struct TokioDelay;
 /// impl MakeDelay for TokioDelay {
 ///     type Delay = tokio::time::Sleep;
-///     fn delay_util(&self, until: Instant) -> Self::Delay {
+///     fn delay_until(&self, until: Instant) -> Self::Delay {
 ///         tokio::time::sleep_until(tokio::time::Instant::from_std(until))
 ///     }
 /// }
@@ -168,7 +168,7 @@ pub fn interval_at<D: MakeDelay>(start: Instant, period: Duration, make_delay: D
 
 fn make_interval<D: MakeDelay>(start: Instant, period: Duration, make_delay: D) -> Interval<D> {
     let deadline = start;
-    let delay = Box::pin(make_delay.delay_util(start));
+    let delay = Box::pin(make_delay.delay_until(start));
     Interval {
         deadline,
         period,
@@ -267,7 +267,7 @@ impl<D: MakeDelay> Interval<D> {
         // When we arrive here, the internal delay returned `Poll::Ready`.
         // Reassign the delay but do not register it. It should be registered with
         // the next call to `poll_tick`.
-        self.delay = Box::pin(self.make_delay.delay_util(next));
+        self.delay = Box::pin(self.make_delay.delay_until(next));
 
         // Return the time when we were scheduled to tick
         self.deadline = next;

@@ -62,7 +62,7 @@ async fn test_simple_action() {
     let shutdown = Instant::now() + Duration::from_secs(10);
 
     MySimpleAction::new("schedule_with_fixed_delay").schedule_with_fixed_delay(
-        make_delay.delay_util(shutdown),
+        make_delay.delay_until(shutdown),
         &spawn,
         make_delay,
         initial_delay,
@@ -70,7 +70,7 @@ async fn test_simple_action() {
     );
 
     MySimpleAction::new("schedule_at_fixed_rate").schedule_at_fixed_rate(
-        make_delay.delay_util(shutdown),
+        make_delay.delay_until(shutdown),
         &spawn,
         make_delay,
         initial_delay,
@@ -78,6 +78,6 @@ async fn test_simple_action() {
     );
 
     make_delay
-        .delay_util(shutdown + Duration::from_secs(1))
+        .delay_until(shutdown + Duration::from_secs(1))
         .await;
 }

@@ -80,7 +80,7 @@ pub trait ArbitraryDelayActionExt: ArbitraryDelayAction {
                         ControlFlow::Break(()) => break,
                     };
 
-                    if execute_or_shutdown(make_delay.delay_util(next), &mut is_shutdown)
+                    if execute_or_shutdown(make_delay.delay_until(next), &mut is_shutdown)
                         .await
                         .is_break()
                     {
