@@ -13,7 +13,13 @@
 # limitations under the License.
 
 [workspace]
-members = ["fastimer", "fastimer-core", "fastimer-tokio", "xtask"]
+members = [
+  "fastimer",
+  "fastimer-core",
+  "fastimer-timewheel",
+  "fastimer-tokio",
+  "xtask",
+]
 resolver = "2"
 
 [workspace.package]
@@ -30,9 +36,12 @@ fastimer-core = { version = "0.1.0", path = "fastimer-core" }
 fastimer-tokio = { version = "0.10.0", path = "fastimer-tokio" }
 
 # Crates.io dependencies
+atomic-waker = { version = "1.1.2" }
 clap = { version = "4.5.20", features = ["derive"] }
+crossbeam-queue = { version = "0.3.12" }
 log = { version = "0.4.28" }
 logforth = { version = "0.28.1" }
+parking = { version = "2.2.1" }
 pin-project = { version = "1.1.10" }
 tokio = { version = "1.47.1" }
 which = { version = "8.0.0" }

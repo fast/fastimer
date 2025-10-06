@@ -1,22 +1,22 @@
-# Fastimer Core API
+# Fastimer Timewheel Implementation
 
 [![Crates.io][crates-badge]][crates-url]
 [![Documentation][docs-badge]][docs-url]
 [![MSRV 1.85][msrv-badge]](https://www.whatrustisit.com)
 
-[crates-badge]: https://img.shields.io/crates/v/fastimer-core.svg
-[crates-url]: https://crates.io/crates/fastimer-core
-[docs-badge]: https://docs.rs/fastimer-core/badge.svg
+[crates-badge]: https://img.shields.io/crates/v/fastimer-timewheel.svg
+[crates-url]: https://crates.io/crates/fastimer-timewheel
+[docs-badge]: https://docs.rs/fastimer-timewheel/badge.svg
 [msrv-badge]: https://img.shields.io/badge/MSRV-1.85-green?logo=rust
-[docs-url]: https://docs.rs/fastimer-core
+[docs-url]: https://docs.rs/fastimer-timewheel
 
 ## Overview
 
-This crate provides core APIs for fastimer.
+This crate provides timewheel based driver implementation.
 
 ## Documentation
 
-Read the online documents at https://docs.rs/fastimer-core.
+Read the online documents at https://docs.rs/fastimer-timewheel.
 
 ## Minimum Supported Rust Version (MSRV)
 
