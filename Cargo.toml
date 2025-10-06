@@ -20,8 +20,8 @@ resolver = "2"
 edition = "2024"
 homepage = "https://github.com/fast/fastimer"
 license = "Apache-2.0"
-repository = "https://github.com/fast/fastimer"
 readme = "README.md"
+repository = "https://github.com/fast/fastimer"
 rust-version = "1.85.0"
 
 [workspace.dependencies]
