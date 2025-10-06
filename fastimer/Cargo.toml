@@ -14,8 +14,9 @@
 
 [package]
 name = "fastimer"
+version = "0.9.1"
 
-description = "This crate implements runtime-agnostic timer traits and utilities."
+description = "Runtime-agnostic timer traits and utilities"
 
 edition.workspace = true
 homepage.workspace = true
@@ -23,7 +24,6 @@ license.workspace = true
 readme.workspace = true
 repository.workspace = true
 rust-version.workspace = true
-version.workspace = true
 
 [package.metadata.docs.rs]
 all-features = true
@@ -33,14 +33,16 @@ rustdoc-args = ["--cfg", "docsrs"]
 logging = ["dep:log"]
 
 [dependencies]
-pin-project = { version = "1.1.9" }
+fastimer-core = { workspace = true }
+pin-project = { workspace = true }
 
 # optional dependencies
-log = { version = "0.4.22", features = ["kv"], optional = true }
+log = { workspace = true, optional = true }
 
 [dev-dependencies]
-log = { version = "0.4.22", features = ["kv"] }
-logforth = { version = "0.24.0", features = ["colored"] }
+fastimer-tokio = { workspace = true, features = ["spawn", "time"] }
+log = { workspace = true }
+logforth = { workspace = true, features = ["starter-log"] }
 tokio = { workspace = true, features = ["full"] }
 
 [lints]

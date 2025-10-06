@@ -1,0 +1,21 @@
+[package]
+name = "fastimer-core"
+version = "0.1.0"
+
+description = "Core timer traits, types, and utilities for fastimer"
+readme = "README.md"
+
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+
+[lints]
+workspace = true

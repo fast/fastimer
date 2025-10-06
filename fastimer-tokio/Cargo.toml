@@ -14,8 +14,9 @@
 
 [package]
 name = "fastimer-tokio"
+version = "0.10.0"
 
-description = "This crate provides tokio runtime integration for fastimer."
+description = "Fastimer integration for tokio runtime."
 readme = "README.md"
 
 edition.workspace = true
@@ -23,18 +24,17 @@ homepage.workspace = true
 license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
-version.workspace = true
 
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-spawn = ["dep:fastimer", "dep:tokio", "tokio/rt"]
-time = ["dep:fastimer", "dep:tokio", "tokio/time"]
+spawn = ["dep:fastimer-core", "dep:tokio", "tokio/rt"]
+time = ["dep:fastimer-core", "dep:tokio", "tokio/time"]
 
 [dependencies]
-fastimer = { workspace = true, optional = true }
+fastimer-core = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
 
 [lints]

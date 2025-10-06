@@ -1,22 +1,22 @@
-# Fastimer Driver
+# Fastimer Core API
 
 [![Crates.io][crates-badge]][crates-url]
 [![Documentation][docs-badge]][docs-url]
 [![MSRV 1.85][msrv-badge]](https://www.whatrustisit.com)
 
-[crates-badge]: https://img.shields.io/crates/v/fastimer-driver.svg
-[crates-url]: https://crates.io/crates/fastimer-driver
-[docs-badge]: https://docs.rs/fastimer-driver/badge.svg
+[crates-badge]: https://img.shields.io/crates/v/fastimer-core.svg
+[crates-url]: https://crates.io/crates/fastimer-core
+[docs-badge]: https://docs.rs/fastimer-core/badge.svg
 [msrv-badge]: https://img.shields.io/badge/MSRV-1.85-green?logo=rust
-[docs-url]: https://docs.rs/fastimer-driver
+[docs-url]: https://docs.rs/fastimer-core
 
 ## Overview
 
-This crate implements a timer driver that can work with any async runtime scheduler.
+This crate provides core APIs.
 
 ## Documentation
 
-Read the online documents at https://docs.rs/fastimer-driver.
+Read the online documents at https://docs.rs/fastimer-core.
 
 ## Minimum Supported Rust Version (MSRV)
 

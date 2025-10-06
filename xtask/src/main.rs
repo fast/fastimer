@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! `cargo x` subcommands for building, linting, and testing the workspace.
+
 use std::process::Command as StdCommand;
 
 use clap::Parser;
