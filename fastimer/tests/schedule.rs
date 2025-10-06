@@ -12,18 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! Tests for `schedule` module with `tokio` runtime.
+
 use std::time::Duration;
 use std::time::Instant;
 
 use fastimer::MakeDelay;
 use fastimer::schedule::SimpleAction;
 use fastimer::schedule::SimpleActionExt;
+use fastimer_tokio::MakeTokioDelay;
+use fastimer_tokio::TokioSpawn;
 use logforth::append;
-
-use crate::common::MakeTokioDelay;
-use crate::common::TokioSpawn;
-
-mod common;
 
 struct MySimpleAction {
     name: &'static str,
@@ -43,37 +42,42 @@ impl SimpleAction for MySimpleAction {
 
     async fn run(&mut self) {
         log::info!("[{}] starting turn {}", self.name, self.counter);
-        MakeTokioDelay.delay(Duration::from_secs(1)).await;
+        MakeTokioDelay::default()
+            .delay(Duration::from_secs(1))
+            .await;
         self.counter += 1;
     }
 }
 
 #[tokio::test]
 async fn test_simple_action() {
-    let _ = logforth::builder()
+    logforth::starter_log::builder()
         .dispatch(|d| d.append(append::Stderr::default()))
-        .try_apply();
+        .apply();
+
+    let spawn = TokioSpawn::default();
+    let make_delay = MakeTokioDelay::default();
 
     let initial_delay = Some(Duration::from_secs(1));
     let shutdown = Instant::now() + Duration::from_secs(10);
 
     MySimpleAction::new("schedule_with_fixed_delay").schedule_with_fixed_delay(
-        MakeTokioDelay.delay_until(shutdown),
-        &TokioSpawn,
-        MakeTokioDelay,
+        make_delay.delay_until(shutdown),
+        &spawn,
+        make_delay,
         initial_delay,
         Duration::from_secs(2),
     );
 
     MySimpleAction::new("schedule_at_fixed_rate").schedule_at_fixed_rate(
-        MakeTokioDelay.delay_until(shutdown),
-        &TokioSpawn,
-        MakeTokioDelay,
+        make_delay.delay_until(shutdown),
+        &spawn,
+        make_delay,
         initial_delay,
         Duration::from_secs(2),
     );
 
-    MakeTokioDelay
+    make_delay
         .delay_until(shutdown + Duration::from_secs(1))
         .await;
 }

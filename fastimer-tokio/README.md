@@ -1,4 +1,4 @@
-# Fastimer Tokio
+# Fastimer Integration for Tokio
 
 [![Crates.io][crates-badge]][crates-url]
 [![Documentation][docs-badge]][docs-url]
@@ -12,7 +12,7 @@
 
 ## Overview
 
-This crate provides tokio runtime integration for fastimer.
+This crate provides timer traits, types, and utilities for fastimer.
 
 ## Documentation
 

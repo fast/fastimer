@@ -12,14 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! Tests for `Interval` with `tokio` runtime.
+
 use std::time::Duration;
 use std::time::Instant;
 
 use fastimer::Interval;
 use fastimer::MakeDelay;
 use fastimer::MakeDelayExt;
-
-mod common;
+use fastimer_tokio::MakeTokioDelay;
 
 #[track_caller]
 fn assert_duration_eq(actual: Duration, expected: Duration) {
@@ -37,7 +38,7 @@ async fn assert_tick_about<D: MakeDelay>(interval: &mut Interval<D>, expected: D
 
 #[tokio::test]
 async fn test_interval_ticks() {
-    let mut interval = common::MakeTokioDelay.interval(Duration::from_secs(1));
+    let mut interval = MakeTokioDelay::default().interval(Duration::from_secs(1));
     assert_tick_about(&mut interval, Duration::ZERO).await;
 
     for _ in 0..5 {
@@ -49,7 +50,7 @@ async fn test_interval_ticks() {
 async fn test_interval_at_ticks() {
     let first_tick = Instant::now() + Duration::from_secs(2);
 
-    let mut interval = common::MakeTokioDelay.interval_at(first_tick, Duration::from_secs(1));
+    let mut interval = MakeTokioDelay::default().interval_at(first_tick, Duration::from_secs(1));
     assert_tick_about(&mut interval, Duration::from_secs(2)).await;
 
     for _ in 0..5 {

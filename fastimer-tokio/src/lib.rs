@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
-#![deny(missing_docs)]
+//! [`tokio`] runtime support for [`fastimer-core`]'s traits.
+//!
+//! [`fastimer-core`]: fastimer_core
 
-//! [`tokio`] runtime support for [`fastimer`]'s traits.
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[cfg(feature = "time")]
 pub use delay::*;
@@ -25,11 +26,12 @@ mod delay {
     use std::time::Duration;
     use std::time::Instant;
 
-    use fastimer::MakeDelay;
+    use fastimer_core::MakeDelay;
 
     /// A delay implementation that uses Tokio's timer.
     #[derive(Clone, Copy, Debug, Default)]
-    pub struct MakeTokioDelay;
+    #[non_exhaustive]
+    pub struct MakeTokioDelay {}
 
     impl MakeDelay for MakeTokioDelay {
         type Delay = tokio::time::Sleep;
@@ -51,7 +53,7 @@ pub use spawn::*;
 mod spawn {
     use std::future::Future;
 
-    use fastimer::Spawn;
+    use fastimer_core::Spawn;
 
     /// A spawn implementation that uses Tokio's runtime.
     #[derive(Clone, Debug, Default)]

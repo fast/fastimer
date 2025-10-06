@@ -18,11 +18,11 @@ use std::pin::pin;
 use std::time::Duration;
 use std::time::Instant;
 
+use super::execute_or_shutdown;
 use crate::MakeDelay;
 use crate::Spawn;
 use crate::debug;
 use crate::info;
-use crate::schedule::execute_or_shutdown;
 
 /// Repeatable action that can be scheduled with arbitrary delay.
 ///

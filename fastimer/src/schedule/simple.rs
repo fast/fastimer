@@ -17,6 +17,7 @@ use std::pin::pin;
 use std::time::Duration;
 use std::time::Instant;
 
+use super::execute_or_shutdown;
 use crate::MakeDelay;
 use crate::Spawn;
 use crate::debug;
@@ -24,7 +25,6 @@ use crate::far_future;
 use crate::info;
 use crate::make_instant_from;
 use crate::make_instant_from_now;
-use crate::schedule::execute_or_shutdown;
 
 /// Repeatable action.
 ///

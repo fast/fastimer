@@ -13,7 +13,7 @@
 # limitations under the License.
 
 [workspace]
-members = ["fastimer", "fastimer-driver", "fastimer-tokio", "xtask"]
+members = ["fastimer", "fastimer-core", "fastimer-tokio", "xtask"]
 resolver = "2"
 
 [workspace.package]
@@ -23,20 +23,30 @@ license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/fast/fastimer"
 rust-version = "1.85.0"
-version = "0.9.0"
 
 [workspace.dependencies]
-fastimer = { version = "0.9.0", path = "fastimer" }
-tokio = { version = "1.43.0" }
+# Workspace dependencies
+fastimer-core = { version = "0.1.0", path = "fastimer-core" }
+fastimer-tokio = { version = "0.10.0", path = "fastimer-tokio" }
+
+# Crates.io dependencies
+clap = { version = "4.5.20", features = ["derive"] }
+log = { version = "0.4.28" }
+logforth = { version = "0.28.1" }
+pin-project = { version = "1.1.10" }
+tokio = { version = "1.47.1" }
+which = { version = "8.0.0" }
 
 [workspace.lints.rust]
+missing_docs = "deny"
 unknown_lints = "deny"
+unused_must_use = "deny"
 
 [workspace.lints.clippy]
 dbg_macro = "deny"
 
 [workspace.metadata.release]
-pre-release-commit-message = "chore: release v{{version}}"
-shared-version = true
+pre-release-commit-message = "chore: Release {{crate_name}} version {{version}}"
+sign-commit = true
 sign-tag = true
-tag-name = "v{{version}}"
+tag-message = "chore: Release {{crate_name}} version {{version}}"
