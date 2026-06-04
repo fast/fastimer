@@ -16,6 +16,15 @@
 [actions-badge]: https://github.com/fast/fastimer/workflows/CI/badge.svg
 [actions-url]:https://github.com/fast/fastimer/actions?query=workflow%3ACI
 
+> [!WARNING]
+> The code for this project could serve as a starting point for runtime-agnostic timers and scheduled actions. However, I'm not entirely satisfied with the API or the name.
+>
+> Regarding the scheduled actions, I don't think they need to be treated specially. Essentially, everything you put in a `spawn.spawn`, you could just return a future and let an external spawn drive it.
+>
+> There are some things I want to change, but I haven't fully thought through its shape, its name, or where it should be placed. So, I'll temporarily put this project on hold.
+>
+> Its implementation is solid, though. If you want to reuse something like this for runtime-agnostic intervals, timeouts, or scheduled actions, the code is perfectly fine. I just feel there's significant room for improvement in its form and categorization, and I haven't quite figured it out yet, so I'll leave it as is for now.
+
 ## Overview
 
 Fastimer implements runtime-agnostic timer traits and utilities.
